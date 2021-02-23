@@ -1,0 +1,57 @@
+---
+version: "3.3"
+services:
+  application:
+    image: ${DOCKER_MAIN}
+    environment:
+      - MONGO_HOST
+      - MONGO_DATABASE
+      - MONGO_USERNAME
+      - MONGO_PASSWORD
+      - PGHOST
+      - PGPORT
+      - PGDATABASE
+      - PGUSER
+      - PGPASSWORD
+    ports:
+      - 8080
+    volumes:
+      - ./src:/${APP_NAME}
+    working_dir: /${APP_NAME}
+
+  poetry:
+    image: ${PYTHON_POETRY}
+    volumes:
+      - .:/${APP_NAME}
+    working_dir: /${APP_NAME}
+
+  mongo:
+    image: mongo:4.4.1-bionic
+    environment:
+      - MONGO_INITDB_DATABASE=${MONGO_DATABASE}
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
+    ports:
+      - 27017
+    volumes:
+      - mongodb_data:/data/db
+
+  postgres:
+    image: postgres:13.0
+    environment:
+      - POSTGRES_DB=${PGDATABASE}
+      - POSTGRES_USER=${PGUSER}
+      - POSTGRES_PASSWORD=${PGPASSWORD}
+      - PGDATABASE
+      - PGUSER
+      - PGPASSWORD
+      - PGHOST
+      - PGPORT
+    ports:
+      - 5432
+    volumes:
+      - pg_data:/var/lib/postgresql/data/
+
+volumes:
+  mongodb_data:
+  pg_data:

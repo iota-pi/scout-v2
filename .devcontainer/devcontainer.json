@@ -1,0 +1,28 @@
+{
+	"name": "Python Development Docker",
+	"context": "..",
+	"dockerFile": "../docker/dev.Dockerfile",
+	"build": {
+		"args": {
+			"image_name": "python_docker_dev_base",
+		},
+	},
+	"remoteUser": "appuser",
+
+	// Set *default* container specific settings.json values on container create.
+	"settings": {
+		"terminal.integrated.shell.linux": null,
+	},
+
+	// IDs of extensions to be installed in the container
+	"extensions": [
+		"ms-python.python",
+		"ms-python.vscode-pylance",
+	],
+
+	// Don't need to re-install extensions when rebuilding container
+	"mounts": [
+    "source=unique-vol-name-here,target=/root/.vscode-server/extensions,type=volume",
+    "source=unique-vol-name-here-insiders,target=/root/.vscode-server-insiders/extensions,type=volume",
+	],
+}
