@@ -23,8 +23,6 @@ logger = logging.getLogger("scout-scraper")
 
 
 def main(region):
-    global START_HOUR, END_HOUR, DAY_ROWS, KEEP_HALFS
-
     # Load the page data
     fname = region
     page = loadPage(fname)
@@ -151,7 +149,6 @@ def getHour(string):
 # compact(): combines consecutive half-hour-long blocks into hour-long blocks
 #
 def compact(arr):
-    global KEEP_HALFS
     if KEEP_HALFS:
         return arr
     return [arr[i] | arr[i + 1] for i in range(0, len(arr), 2)]
