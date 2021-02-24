@@ -8,7 +8,7 @@ import math
 import requests
 import sys
 from lxml import html
-from typing import List
+from typing import Any, List
 
 KEEP_HALFS = False
 
@@ -22,7 +22,34 @@ TIMES = [
 logger = logging.getLogger("scout-scraper")
 
 
-def main(region):
+def readPages():
+    logger.info("Downloading HTML data...")
+    url = (
+        "https://nss.cse.unsw.edu.au/tt/view_multirooms.php"
+        "?dbafile=2017-KENS-COFA.DBA&campus=KENS"
+    )
+    with open("rooms") as f:
+        payload = ast.literal_eval(f.read())
+    for region in payload.keys():
+        logger.info("Downloading data for " + region + " campus region... ", end="")
+        sys.stdout.flush()
+        payload[region] += TIMES
+        r = requests.post(url, payload[region])
+        with open("html/" + region + ".html", "w") as f:
+            f.write(r.content.decode("utf-8"))
+        logger.info("Done")
+
+
+def scrape():
+    logger.info("Parsing data...")
+    for region in ("mid", "low", "top"):
+        logger.info("Parsing data for " + region + " campus region... ", end="")
+        sys.stdout.flush()
+        scrapeRegion(region)
+        logger.info("Done")
+
+
+def scrapeRegion(region):
     # Load the page data
     fname = region
     page = loadPage(fname)
@@ -82,14 +109,13 @@ def main(region):
         json.dump([data, roomlist, settings], f, separators=(",", ":"))
 
 
-def transpose(array: List):
+def transpose(array: List[List[Any]]):
+    """Transpose a list of lists"""
     return [[array[j][i] for j in range(len(array))] for i in range(len(array[0]))]
 
 
-#
-# extract(): extracts the week data from the given cell
-#
 def extract(cell, mask):
+    """Extracts the week data from the given cell"""
     arr = cell.xpath("span/@title")
     text = cell.xpath(".//text()")
     if "".join(text).strip() in ("&nbsp;", ""):
@@ -111,12 +137,8 @@ def extract(cell, mask):
         return total
 
 
-#
-# getDays()
-# Gets an array of the rows for each day in the table, and stores this in a hash
-# Returns hash with day names as keys
-#
 def getDays(table):
+    """Gets a hash of the data for each day"""
     days = {}
     day = None
 
@@ -132,75 +154,34 @@ def getDays(table):
         else:
             # Move on to the next row
             day = cell.lower()
+            if day in days:
+                logger.warning(f"Overwriting previous data for {day}")
             days[day] = []
 
     return days
 
 
-#
-# getHour(): turns a time string in 24-hour format into a float
-#            (NB: requires 1/2 hour minimum intervals)
-#
 def getHour(string):
+    """Turns a 24-hour time string into a float"""
     return float(string.replace(":30", ".5").replace(":00", ""))
 
 
-#
-# compact(): combines consecutive half-hour-long blocks into hour-long blocks
-#
 def compact(arr):
+    """Combines consecutive half-hour blocks into hour-long blocks"""
     if KEEP_HALFS:
         return arr
     return [arr[i] | arr[i + 1] for i in range(0, len(arr), 2)]
 
 
-#
-# loadPage(): takes a URI and returns an HTML tree from the page data at that URI
-# NB:         this is synchronous
-#
 def loadPage(fname):
+    """Reads an HTML page from local cache"""
     with open("html/" + fname + ".html") as f:
         tree = html.fromstring(f.read())
     return tree
 
 
-def readPages():
-    logger.info("Downloading HTML data...")
-    url = (
-        "https://nss.cse.unsw.edu.au/tt/view_multirooms.php"
-        "?dbafile=2017-KENS-COFA.DBA&campus=KENS"
-    )
-    with open("rooms") as f:
-        payload = ast.literal_eval(f.read())
-    for region in payload.keys():
-        logger.info("Downloading data for " + region + " campus region... ", end="")
-        sys.stdout.flush()
-        payload[region] += TIMES
-        r = requests.post(url, payload[region])
-        with open("html/" + region + ".html", "w") as f:
-            f.write(r.content.decode("utf-8"))
-        logger.info("Done")
-
-
-def parse():
-    logger.info("Parsing data...")
-    for region in ("mid", "low", "top"):
-        logger.info("Parsing data for " + region + " campus region... ", end="")
-        sys.stdout.flush()
-        main(region)
-        logger.info("Done")
-
-
 if __name__ == "__main__":
-    download = True
-
-    # Always download if -f option is present
-    for arg in sys.argv[1:]:
-        if arg[0] == "0" and "f" in arg:
-            download = True
-
-    if download:
-        readPages()
+    readPages()
 
     # Parse the HTML data
-    parse()
+    scrape()
