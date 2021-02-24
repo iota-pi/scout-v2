@@ -1,17 +1,15 @@
 #!/usr/bin/python3
 
-import ast
 import datetime
 import json
 import logging
 import math
 import requests
-import sys
 from lxml import html
 from typing import Any, List
 
 KEEP_HALFS = False
-
+REGIONS = ("mid", "low", "top")
 TIMES = [
     ("fr_week", "30"),
     ("fr_date", "Mon 24 Jul 2017"),
@@ -28,25 +26,21 @@ def readPages():
         "https://nss.cse.unsw.edu.au/tt/view_multirooms.php"
         "?dbafile=2017-KENS-COFA.DBA&campus=KENS"
     )
-    with open("rooms") as f:
-        payload = ast.literal_eval(f.read())
+    with open("data/rooms.json") as f:
+        payload = json.load(f)
     for region in payload.keys():
-        logger.info("Downloading data for " + region + " campus region... ", end="")
-        sys.stdout.flush()
+        logger.info(f'Downloading data for campus region "{region}"')
         payload[region] += TIMES
         r = requests.post(url, payload[region])
         with open("html/" + region + ".html", "w") as f:
             f.write(r.content.decode("utf-8"))
-        logger.info("Done")
 
 
 def scrape():
     logger.info("Parsing data...")
-    for region in ("mid", "low", "top"):
-        logger.info("Parsing data for " + region + " campus region... ", end="")
-        sys.stdout.flush()
+    for region in REGIONS:
+        logger.info(f"Parsing data for {region} campus region")
         scrapeRegion(region)
-        logger.info("Done")
 
 
 def scrapeRegion(region):
