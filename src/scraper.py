@@ -1,13 +1,14 @@
 #!/usr/bin/python3
 
-from lxml import html
-import datetime
-import requests
-import json
-import numpy as np
-import math
-import sys
 import ast
+import datetime
+import json
+import logging
+import math
+import requests
+import sys
+from lxml import html
+from typing import List
 
 KEEP_HALFS = False
 
@@ -17,6 +18,8 @@ TIMES = [
     ("to_week", "43"),
     ("to_date", "Sun 29 Oct 2017"),
 ]
+
+logger = logging.getLogger("scout-scraper")
 
 
 def main(region):
@@ -59,7 +62,7 @@ def main(region):
             rows.insert(0, rows[0])
 
         # Rooms
-        rooms = list(np.array([row[1:-1] for row in rows]).transpose())
+        rooms = transpose([row[1:-1] for row in rows])
         data[day] = [
             compact(list(map(lambda x: extract(x, mask), room))) for room in rooms
         ]
@@ -81,6 +84,10 @@ def main(region):
         json.dump([data, roomlist, settings], f, separators=(",", ":"))
 
 
+def transpose(array: List):
+    return [[array[j][i] for j in range(len(array))] for i in range(len(array[0]))]
+
+
 #
 # extract(): extracts the week data from the given cell
 #
@@ -96,7 +103,7 @@ def extract(cell, mask):
         total = 0
         for item in arr:
             # Omit the MSB
-            weeks = item[:midsem] + item[midsem + 1 :]
+            weeks = item[:midsem] + item[(midsem + 1):]
 
             # Turn weeks to binary and OR with previous record of booked weeks
             # NB:   the reverse is to make last week (originally on RHS)
@@ -161,27 +168,30 @@ def loadPage(fname):
 
 
 def readPages():
-    print("Downloading HTML data...")
-    url = "https://nss.cse.unsw.edu.au/tt/view_multirooms.php?dbafile=2017-KENS-COFA.DBA&campus=KENS"
+    logger.info("Downloading HTML data...")
+    url = (
+        "https://nss.cse.unsw.edu.au/tt/view_multirooms.php"
+        "?dbafile=2017-KENS-COFA.DBA&campus=KENS"
+    )
     with open("rooms") as f:
         payload = ast.literal_eval(f.read())
     for region in payload.keys():
-        print("Downloading data for " + region + " campus region... ", end="")
+        logger.info("Downloading data for " + region + " campus region... ", end="")
         sys.stdout.flush()
         payload[region] += TIMES
         r = requests.post(url, payload[region])
         with open("html/" + region + ".html", "w") as f:
             f.write(r.content.decode("utf-8"))
-        print("Done")
+        logger.info("Done")
 
 
 def parse():
-    print("Parsing data...")
+    logger.info("Parsing data...")
     for region in ("mid", "low", "top"):
-        print("Parsing data for " + region + " campus region... ", end="")
+        logger.info("Parsing data for " + region + " campus region... ", end="")
         sys.stdout.flush()
         main(region)
-        print("Done")
+        logger.info("Done")
 
 
 if __name__ == "__main__":
