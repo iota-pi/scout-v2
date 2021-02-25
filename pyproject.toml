@@ -8,6 +8,7 @@ authors = ["David Adams"]
 python = "^3.9"
 lxml = "^4.6.2"
 requests = "^2.25.1"
+beautifulsoup4 = "^4.9.3"
 
 [tool.poetry.dev-dependencies]
 black = "^20.8b1"

@@ -1,5 +1,8 @@
+from scraper import scrape
+
+
 def main():
-    print("hi")
+    scrape()
 
 
 if __name__ == "__main__":

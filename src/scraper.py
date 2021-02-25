@@ -1,181 +1,158 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
-import datetime
 import json
 import logging
-import math
+from collections import defaultdict
+from typing import Dict, List, Sequence
+
 import requests
-from lxml import html
-from typing import Any, List
+from bs4 import BeautifulSoup
 
-KEEP_HALFS = False
-REGIONS = ("mid", "low", "top")
-TIMES = [
-    ("fr_week", "30"),
-    ("fr_date", "Mon 24 Jul 2017"),
-    ("to_week", "43"),
-    ("to_date", "Sun 29 Oct 2017"),
-]
 
+RoomData = Dict[float, int]
+DayData = Dict[str, RoomData]
+WeekData = Dict[str, DayData]
+
+BASE_URL = "https://nss.cse.unsw.edu.au/tt"
+FULL_URL = f"{BASE_URL}/view_multirooms.php?dbafile=2021-KENS-COFA.DBA&campus=KENS"
+REGIONS = (
+    "mid",
+    "low",
+    "top",
+)
+PRECINCT_MAP: Dict[str, List[str]] = {
+    "low": ["PR_SQHS", "PR_TETB", "PR_LAW"],
+    "mid": ["PR_GOLD", "PR_QUAD"],
+    "top": ["PR_AGSM", "PR_MATHEWS", "PR_MORVENBRN"],
+}
+
+logging.basicConfig()
 logger = logging.getLogger("scout-scraper")
-
-
-def readPages():
-    logger.info("Downloading HTML data...")
-    url = (
-        "https://nss.cse.unsw.edu.au/tt/view_multirooms.php"
-        "?dbafile=2017-KENS-COFA.DBA&campus=KENS"
-    )
-    with open("data/rooms.json") as f:
-        payload = json.load(f)
-    for region in payload.keys():
-        logger.info(f'Downloading data for campus region "{region}"')
-        payload[region] += TIMES
-        r = requests.post(url, payload[region])
-        with open("html/" + region + ".html", "w") as f:
-            f.write(r.content.decode("utf-8"))
+logger.setLevel(logging.INFO)
 
 
 def scrape():
-    logger.info("Parsing data...")
     for region in REGIONS:
         logger.info(f"Parsing data for {region} campus region")
-        scrapeRegion(region)
+        scrape_region(region)
 
 
-def scrapeRegion(region):
-    # Load the page data
-    fname = region
-    page = loadPage(fname)
+def scrape_region(region: str) -> WeekData:
+    precincts = PRECINCT_MAP[region]
+    rooms = fetch_rooms(precincts)
+    page = fetch_bookings_page(rooms, precincts)
+    data = parse_bookings_page(page)
 
-    # Find our main table
-    table = page.xpath("//table[3]")[0]
-    # rows = table.xpath('tr[@class="rowHighlight" or @class="rowLowlight"]')
-
-    # Get all class names
-    roomlist = table.xpath('tr[1]/td[@class="note ttpad"]/b/text()')
-
-    # Get the rows of the tables for each day
-    days = getDays(table)
-
-    # Find the mask
-    mask = page.xpath("//table[2]/tr[1]/td[2]/text()")[0].split(" ")[-1]
-
-    data = {}
-
-    # Build an array of starting and ending times
-    dow = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-    starts = []
-    ends = []
-    for day in dow:
-        starts.append(getHour(days[day][0][0].text))
-        ends.append(math.ceil(getHour(days[day][-1][0].text)))
-
-    # Scrape data for each timeslot in each day
-    for day in days:
-        rows = days[day]
-
-        # Align first row with the start on an hour
-        if not starts[dow.index(day)].is_integer():
-            # Duplicate first entry
-            rows.insert(0, rows[0])
-
-        # Rooms
-        rooms = transpose([row[1:-1] for row in rows])
-        data[day] = [
-            compact(list(map(lambda x: extract(x, mask), room))) for room in rooms
-        ]
-
-    # Create settings hash to add to JSON output
-    date = datetime.date.today()
-    starts = list(map(int, starts))
-    settings = {
-        "start": starts,
-        "end": ends,
-        "days": len(days),
-        "halfhours": KEEP_HALFS,
-        "sem": "T1",
-        "year": date.strftime("%Y"),
-        "updated": date.strftime("%d/%m/%Y"),
-    }
-
-    with open("data/" + fname + ".json", "w") as f:
-        json.dump([data, roomlist, settings], f, separators=(",", ":"))
+    with open(f"data/{region}.json", "w") as f:
+        json.dump(data, f, indent=2)
+    return data
 
 
-def transpose(array: List[List[Any]]):
-    """Transpose a list of lists"""
-    return [[array[j][i] for j in range(len(array))] for i in range(len(array[0]))]
+def fetch_rooms(precincts: List[str]) -> List[str]:
+    """Fetch all room ids for the given precinct(s)"""
+    precinct_items = [("PR[]", precinct) for precinct in precincts]
+    payload = (
+        ("RU[]", "RU_GP-TUTSEM"),
+        *precinct_items,
+        ("roomsize", "all"),
+        ("building", "all"),
+        ("search_rooms", "Search"),
+    )
+    r = requests.post(FULL_URL, payload)
+    soup = BeautifulSoup(r.content, "lxml")
+    room_inputs = soup.find_all("input", attrs={"type": "checkbox", "name": "rooms[]"})
+    room_ids = [room["value"] for room in room_inputs]
+    return room_ids
 
 
-def extract(cell, mask):
+def fetch_bookings_page(rooms: Sequence[str], precincts: List[str]) -> BeautifulSoup:
+    payload = [
+        ("view", "View Selected Rooms"),
+        ("check_cntrl", "on"),
+        ("roomtype", "all"),
+        ("roomsize", "all"),
+        ("acadorg", "all"),
+        ("building", "all"),
+        ("roomsuits", f"RU_GP-TUTSEM|{','.join(precincts)}"),
+        *get_teaching_period_params(),
+    ]
+    payload.extend([("rooms[]", room) for room in rooms])
+    r = requests.post(FULL_URL, payload)
+    soup = BeautifulSoup(r.content, "lxml")
+    return soup
+
+
+def parse_bookings_page(page: BeautifulSoup) -> WeekData:
+    # Find main data rows
+    table: BeautifulSoup = page.find_all("table", attrs={"class": "grid"})[-1]
+    rows: Sequence[BeautifulSoup] = table.find_all("tr")
+    mask = get_teaching_mask(page)
+    day = ""
+    rooms: List[str] = []
+    data: WeekData = {}
+
+    for row in rows:
+        first_cell_text: str = row.td.text
+        if first_cell_text[0].isalpha():
+            day = first_cell_text.lower()
+            if len(rooms) == 0:
+                rooms = get_room_names(row)
+            data.setdefault(day, defaultdict(dict))
+            continue
+
+        cells = row.find_all("td")[1:-1]
+        hour = int(get_hour(first_cell_text))
+        for room, cell in zip(rooms, cells):
+            value = extract(cell, mask)
+            newValue = data[day][room].get(hour, 0) | value
+            if newValue:
+                data[day][room][hour] = newValue
+
+    return data
+
+
+def get_room_names(row: BeautifulSoup) -> List[str]:
+    cells = row.find_all("td")[1:-1]
+    names = [cell.b.text for cell in cells]
+    return names
+
+
+def get_teaching_mask(page: BeautifulSoup) -> str:
+    """Get the binary mask of which weeks are teaching weeks"""
+    table = page.find_all("table", attrs={"class": "grid"})[0]
+    return table.tr.text.split()[-1]
+
+
+def get_teaching_period_params():
+    from_week = 8
+    from_date = "Mon 15 Feb 2021"
+    to_week = 17
+    to_date = "Sun 25 Apr 2021"
+    teaching_period_params = (
+        ("teachingperiod", f"{from_week},{from_date},{to_week},{to_date}"),
+        ("fr_week", from_week),
+        ("fr_date", from_date),
+        ("to_week", to_week),
+        ("to_date", to_date),
+    )
+    return teaching_period_params
+
+
+def extract(cell: BeautifulSoup, mask: str) -> int:
     """Extracts the week data from the given cell"""
-    arr = cell.xpath("span/@title")
-    text = cell.xpath(".//text()")
-    if "".join(text).strip() in ("&nbsp;", ""):
+    spans = cell.find_all("span")
+    if cell.text.replace("&nbsp;", "").strip() == "":
         return 0
-    elif len(arr) == 0:
+    elif len(spans) == 0:
         return int(mask, 2)
-    else:
-        midsem = mask.find("0")
-        total = 0
-        for item in arr:
-            # Omit the MSB
-            weeks = item[:midsem] + item[(midsem + 1):]
 
-            # Turn weeks to binary and OR with previous record of booked weeks
-            # NB:   the reverse is to make last week (originally on RHS)
-            #       to be MSB not LSB
-            total |= int(weeks[::-1], 2)
-
-        return total
+    total = 0
+    for span in spans:
+        weeks = "".join(x for (x, m) in zip(span["title"], mask) if m == "1")
+        total |= int(weeks[::-1], 2)
+    return total
 
 
-def getDays(table):
-    """Gets a hash of the data for each day"""
-    days = {}
-    day = None
-
-    for row in table:
-        # Get the data from the first cell in this row
-        #   This will either be a day of the week, or a time
-        cell = "".join(row[0].xpath(".//text()")).strip(":0").replace(":3", ".5")
-
-        # Check if first character is a digit; if so, this is a time
-        if cell[0].isdigit():
-            # Append this row to this day
-            days[day].append(row)
-        else:
-            # Move on to the next row
-            day = cell.lower()
-            if day in days:
-                logger.warning(f"Overwriting previous data for {day}")
-            days[day] = []
-
-    return days
-
-
-def getHour(string):
+def get_hour(string):
     """Turns a 24-hour time string into a float"""
     return float(string.replace(":30", ".5").replace(":00", ""))
-
-
-def compact(arr):
-    """Combines consecutive half-hour blocks into hour-long blocks"""
-    if KEEP_HALFS:
-        return arr
-    return [arr[i] | arr[i + 1] for i in range(0, len(arr), 2)]
-
-
-def loadPage(fname):
-    """Reads an HTML page from local cache"""
-    with open("html/" + fname + ".html") as f:
-        tree = html.fromstring(f.read())
-    return tree
-
-
-if __name__ == "__main__":
-    readPages()
-
-    # Parse the HTML data
-    scrape()
