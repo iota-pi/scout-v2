@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
+from collections import defaultdict
+from datetime import datetime
+from dateutil import parser
+from typing import Dict, List, Sequence
 import json
 import logging
-from collections import defaultdict
-from typing import Dict, List, Sequence
 
 import requests
 from bs4 import BeautifulSoup
@@ -32,20 +34,30 @@ logger.setLevel(logging.INFO)
 
 
 def scrape():
+    times = get_terms_and_times()
+    term = get_current_term(times)
+    meta = get_metadata(times[term], term)
     for region in REGIONS:
         logger.info(f"Parsing data for {region} campus region")
-        scrape_region(region)
+        data = scrape_region(region, times[term])
+        write_data(region, data, meta)
 
 
-def scrape_region(region: str) -> WeekData:
+def scrape_region(region: str, times: dict) -> WeekData:
     precincts = PRECINCT_MAP[region]
     rooms = fetch_rooms(precincts)
-    page = fetch_bookings_page(rooms, precincts)
+    page = fetch_bookings_page(rooms, precincts, times)
     data = parse_bookings_page(page)
-
-    with open(f"data/{region}.json", "w") as f:
-        json.dump(data, f, indent=2)
     return data
+
+
+def write_data(region: str, data: WeekData, meta: dict):
+    full_data = {
+        "data": data,
+        "meta": meta,
+    }
+    with open(f"data/{region}.json", "w") as f:
+        json.dump(full_data, f, indent=2)
 
 
 def fetch_rooms(precincts: List[str]) -> List[str]:
@@ -65,7 +77,11 @@ def fetch_rooms(precincts: List[str]) -> List[str]:
     return room_ids
 
 
-def fetch_bookings_page(rooms: Sequence[str], precincts: List[str]) -> BeautifulSoup:
+def fetch_bookings_page(
+    rooms: Sequence[str],
+    precincts: List[str],
+    times: dict,
+) -> BeautifulSoup:
     payload = [
         ("view", "View Selected Rooms"),
         ("check_cntrl", "on"),
@@ -74,7 +90,7 @@ def fetch_bookings_page(rooms: Sequence[str], precincts: List[str]) -> Beautiful
         ("acadorg", "all"),
         ("building", "all"),
         ("roomsuits", f"RU_GP-TUTSEM|{','.join(precincts)}"),
-        *get_teaching_period_params(),
+        *get_teaching_period_params(times),
     ]
     payload.extend([("rooms[]", room) for room in rooms])
     r = requests.post(FULL_URL, payload)
@@ -111,6 +127,46 @@ def parse_bookings_page(page: BeautifulSoup) -> WeekData:
     return data
 
 
+def get_terms_and_times():
+    def extract_term(text: str) -> str:
+        return text.split()[-1]
+
+    def extract_term_times(text: str) -> dict:
+        from_week, from_date, to_week, to_date = text.split(',')
+        return {
+            "from_week": from_week,
+            "from_date": parser.parse(from_date),
+            "to_week": to_week,
+            "to_date": parser.parse(to_date),
+        }
+
+    r = requests.get(FULL_URL)
+    soup = BeautifulSoup(r.content, "lxml")
+    select = soup.find("select", id="teachingperiod")
+    options = select.find_all("option")
+    times = {
+        extract_term(option.text): extract_term_times(option["value"])
+        for option in options
+    }
+    return times
+
+
+def get_current_term(times: dict):
+    terms = ["T1", "T2", "T3"]
+    for term in terms:
+        if times[term]["from_date"] < datetime.now():
+            return term
+    raise ValueError("Could not find current term")
+
+
+def get_metadata(times: dict, term: str):
+    return {
+        "from": str(times["from_date"]),
+        "to": str(times["to_date"]),
+        "term": term,
+    }
+
+
 def get_room_names(row: BeautifulSoup) -> List[str]:
     cells = row.find_all("td")[1:-1]
     names = [cell.b.text for cell in cells]
@@ -123,11 +179,11 @@ def get_teaching_mask(page: BeautifulSoup) -> str:
     return table.tr.text.split()[-1]
 
 
-def get_teaching_period_params():
-    from_week = 8
-    from_date = "Mon 15 Feb 2021"
-    to_week = 17
-    to_date = "Sun 25 Apr 2021"
+def get_teaching_period_params(times):
+    from_week = times["from_week"]
+    from_date = times["from_date"]
+    to_week = times["to_week"]
+    to_date = times["to_date"]
     teaching_period_params = (
         ("teachingperiod", f"{from_week},{from_date},{to_week},{to_date}"),
         ("fr_week", from_week),
