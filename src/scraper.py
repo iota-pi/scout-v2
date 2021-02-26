@@ -3,7 +3,7 @@
 from collections import defaultdict
 from datetime import datetime
 from dateutil import parser
-from typing import Dict, List, Sequence
+from typing import Dict, List, Sequence, Tuple
 import json
 import logging
 
@@ -34,6 +34,8 @@ logger.setLevel(logging.INFO)
 
 
 def scrape():
+    """Scrape data for every campus region for the current term"""
+    logger.info(f"Fetching term metadata")
     times = get_terms_and_times()
     term = get_current_term(times)
     meta = get_metadata(times[term], term)
@@ -44,6 +46,7 @@ def scrape():
 
 
 def scrape_region(region: str, times: dict) -> WeekData:
+    """Scrape data for one campus region"""
     precincts = PRECINCT_MAP[region]
     rooms = fetch_rooms(precincts)
     page = fetch_bookings_page(rooms, precincts, times)
@@ -52,6 +55,7 @@ def scrape_region(region: str, times: dict) -> WeekData:
 
 
 def write_data(region: str, data: WeekData, meta: dict):
+    """Writes the region's data to a file"""
     full_data = {
         "data": data,
         "meta": meta,
@@ -82,6 +86,7 @@ def fetch_bookings_page(
     precincts: List[str],
     times: dict,
 ) -> BeautifulSoup:
+    """Request the page with the main bookings table"""
     payload = [
         ("view", "View Selected Rooms"),
         ("check_cntrl", "on"),
@@ -99,7 +104,7 @@ def fetch_bookings_page(
 
 
 def parse_bookings_page(page: BeautifulSoup) -> WeekData:
-    # Find main data rows
+    """Extract booking data from the main bookings page"""
     table: BeautifulSoup = page.find_all("table", attrs={"class": "grid"})[-1]
     rows: Sequence[BeautifulSoup] = table.find_all("tr")
     mask = get_teaching_mask(page)
@@ -128,6 +133,7 @@ def parse_bookings_page(page: BeautifulSoup) -> WeekData:
 
 
 def get_terms_and_times():
+    """Gets the times for each term (aka. teaching period)"""
     def extract_term(text: str) -> str:
         return text.split()[-1]
 
@@ -152,6 +158,7 @@ def get_terms_and_times():
 
 
 def get_current_term(times: dict):
+    """Gets the current term (or upcoming term if none is current)"""
     terms = ["T1", "T2", "T3"]
     for term in terms:
         if times[term]["from_date"] < datetime.now():
@@ -160,6 +167,7 @@ def get_current_term(times: dict):
 
 
 def get_metadata(times: dict, term: str):
+    """Get metadata dict to be included with final output"""
     return {
         "from": str(times["from_date"]),
         "to": str(times["to_date"]),
@@ -168,6 +176,7 @@ def get_metadata(times: dict, term: str):
 
 
 def get_room_names(row: BeautifulSoup) -> List[str]:
+    """Retrieve list of room names from a table row"""
     cells = row.find_all("td")[1:-1]
     names = [cell.b.text for cell in cells]
     return names
@@ -179,11 +188,12 @@ def get_teaching_mask(page: BeautifulSoup) -> str:
     return table.tr.text.split()[-1]
 
 
-def get_teaching_period_params(times):
-    from_week = times["from_week"]
-    from_date = times["from_date"]
-    to_week = times["to_week"]
-    to_date = times["to_date"]
+def get_teaching_period_params(times: dict) -> Tuple[Tuple[str, str], ...]:
+    """Get params to describe the current teaching period"""
+    from_week = str(times["from_week"])
+    from_date = str(times["from_date"])
+    to_week = str(times["to_week"])
+    to_date = str(times["to_date"])
     teaching_period_params = (
         ("teachingperiod", f"{from_week},{from_date},{to_week},{to_date}"),
         ("fr_week", from_week),
