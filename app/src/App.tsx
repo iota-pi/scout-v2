@@ -8,8 +8,9 @@ import DurationSelection from './components/DurationSelection';
 import FreeRoomDisplay from './components/FreeRoomDisplay';
 import RegionSelection from './components/RegionSelection';
 import { FullData, initData, RegionName } from './interfaces';
-import WeekSelection from './components/WeekSelection';
-import { getDefaultWeeks } from './util';
+import WeekSelection, { PeriodOption } from './components/WeekSelection';
+import { periodToWeeks } from './util';
+
 
 const DATA_URI_BASE = process.env.REACT_APP_DATA_URI_BASE || '/data';
 function getDataURI(region: string) {
@@ -37,16 +38,20 @@ export default function App() {
   const [start, setStart] = React.useState(getLikelyHour());
   const [duration, setDuration] = React.useState(1);
   const [region, setRegion] = React.useState<RegionName>('mid');
-  const [weeks, setWeeks] = React.useState(0);
-
+  const [period, setPeriod] = React.useState(PeriodOption.current);
   const [data, setData] = React.useState<FullData>(initData);
+
+  const weeks = React.useMemo(
+    () => periodToWeeks(period, data.meta),
+    [period, data],
+  );
+
   React.useEffect(
     () => {
       const uri = getDataURI(region);
       axios.get(uri).then(
         r => {
           setData(r.data);
-          setWeeks(getDefaultWeeks(r.data));
         },
       ).catch(console.error);
     },
@@ -75,7 +80,11 @@ export default function App() {
           </Grid>
 
           <Grid container className={classes.paddingTop}>
-            <WeekSelection weeks={weeks} onChange={setWeeks} />
+            <WeekSelection
+              meta={data.meta}
+              period={period}
+              onChange={setPeriod}
+            />
           </Grid>
         </Container>
       </div>

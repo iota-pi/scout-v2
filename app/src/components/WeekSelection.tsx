@@ -1,52 +1,59 @@
 import React from 'react';
-import { Checkbox, Grid, makeStyles, TextField, Typography } from '@material-ui/core';
-import { Autocomplete, ToggleButtonGroup } from '@material-ui/lab';
-import AccessTimeIcon from '@material-ui/icons/AccessTime';
-import CheckBoxOutlineBlankIcon from '@material-ui/icons/CheckBoxOutlineBlank';
-import CheckBoxIcon from '@material-ui/icons/CheckBox';
-import { weeksToArray } from '../util';
+import { makeStyles, Theme, useMediaQuery } from '@material-ui/core';
+import { ToggleButton, ToggleButtonGroup } from '@material-ui/lab';
+import { getCurrentWeek, weeksInTerm } from '../util';
+import { MetaData } from '../interfaces';
 
 const useStyles = makeStyles(theme => ({
-  flexGrow: {
+  root: {
     flexGrow: 1,
+    backgroundColor: theme.palette.background.paper,
   },
-  marginTop: {
-    marginTop: theme.spacing(2.5),
-  },
-  marginRight: {
-    marginRight: theme.spacing(1),
+  toggleButton: {
+    flexGrow: 1,
   },
 }));
 
-export interface WeekOption {
-  text: string,
-  id: number,
+export enum PeriodOption {
+  current,
+  next,
+  term,
 }
 
-const weekOptions: WeekOption[] = [
-  { text: 'This week', id: 'current' },
-  { text: 'Next week', id: 'next' },
-  { text: 'Rest of term', id: 'term' },
+const periodOptions: [PeriodOption, string][] = [
+  [PeriodOption.current, 'This week'],
+  [PeriodOption.next, 'Next week'],
+  [PeriodOption.term, 'Rest of term'],
 ];
 
-const icon = <CheckBoxOutlineBlankIcon fontSize="small" />;
-const checkedIcon = <CheckBoxIcon fontSize="small" />;
+export function getWeeksDescription(period: PeriodOption, meta: MetaData) {
+  const currentWeek = getCurrentWeek(meta);
+  const finalWeek = weeksInTerm(meta);
 
-export interface Props {
-  weeks: number,
-  onChange: (weeks: number) => void,
+  if (period === PeriodOption.current) {
+    return `Week ${currentWeek}`;
+  } else if (period === PeriodOption.next) {
+    return `Week ${currentWeek + 1}`;
+  }
+
+  return `Weeks ${currentWeek}–${finalWeek}`;
 }
 
-export default function WeekSelection({ weeks, onChange }: Props) {
+export interface Props {
+  meta: MetaData | undefined,
+  period: number,
+  onChange: (period: number) => void,
+}
+
+export default function WeekSelection({ meta, period, onChange }: Props) {
   const classes = useStyles();
-  const [period, setPeriod] = React.useState();
   const handleChange = React.useCallback(
-    (event: React.ChangeEvent<{}>, value: WeekOption[]) => {
-      const newWeeks = value.reduce((acc, x) => acc + x.week, 0);
-      onChange(newWeeks);
+    (event: React.ChangeEvent<{}>, value: PeriodOption) => {
+      onChange(value);
     },
     [onChange],
   );
+  const sizeXS = useMediaQuery((theme: Theme) => theme.breakpoints.down('xs'));
 
   return (
     <ToggleButtonGroup
@@ -56,9 +63,15 @@ export default function WeekSelection({ weeks, onChange }: Props) {
       onChange={handleChange}
       size={sizeXS ? 'small' : 'large'}
     >
-      {dayTuples.map(([abbrev, name]) => (
-        <ToggleButton value={abbrev} key={abbrev} className={classes.toggleButton}>
-          {sizeSM ? name.substr(0, 3) : name}
+      {periodOptions.map(([id, text]) => (
+        <ToggleButton value={id} key={id} className={classes.toggleButton}>
+          {text}
+          {meta && (
+            <>
+              <br />
+              {getWeeksDescription(id, meta)}
+            </>
+          )}
         </ToggleButton>
       ))}
     </ToggleButtonGroup>

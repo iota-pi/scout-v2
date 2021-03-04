@@ -2,18 +2,9 @@ import React from 'react';
 import {
   List,
   ListItem,
-  // makeStyles
 } from '@material-ui/core';
 import { DayAbbrev, WeekData } from '../interfaces';
 
-// const useStyles = makeStyles(theme => ({
-//   flexGrow: {
-//     flexGrow: 1,
-//   },
-//   marginTop: {
-//     marginTop: theme.spacing(2.5),
-//   },
-// }));
 
 export interface Props {
   data: WeekData,
@@ -24,7 +15,6 @@ export interface Props {
 }
 
 export default function FreeRoomDisplay({ data, day, duration, start, weeks }: Props) {
-  // const classes = useStyles();
   const rooms = React.useMemo(
     () => {
       const dayData = data[day];
@@ -34,6 +24,8 @@ export default function FreeRoomDisplay({ data, day, duration, start, weeks }: P
         let booked = false;
         for (let i = 0; i < duration; i++) {
           const hour = start + i;
+          // eslint-disable-next-line no-console
+          console.log(roomData[hour], weeks);
           const overlapWeeks = roomData[hour] & weeks;
           if (overlapWeeks > 0) {
             booked = true;
