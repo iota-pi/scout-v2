@@ -1,7 +1,7 @@
 import React from 'react';
 import { makeStyles, Theme, useMediaQuery } from '@material-ui/core';
 import { ToggleButton, ToggleButtonGroup } from '@material-ui/lab';
-import { DayAbbrev } from './interfaces';
+import { RegionName } from '../interfaces';
 
 
 const useStyles = makeStyles(theme => ({
@@ -15,49 +15,40 @@ const useStyles = makeStyles(theme => ({
 }));
 
 
-export const days: DayAbbrev[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-export function getToday() {
-  const index = (new Date().getDay() - 1) % 6;
-  return days[index];
-}
+export const regions: RegionName[] = ['low', 'mid', 'top'];
 
-const dayTuples: [DayAbbrev, string][] = [
-  ['mon', 'Monday'],
-  ['tue', 'Tuesday'],
-  ['wed', 'Wednesday'],
-  ['thu', 'Thursday'],
-  ['fri', 'Friday'],
-  ['sat', 'Saturday'],
-  ['sun', 'Sunday'],
+const dayTuples: [RegionName, string][] = [
+  ['low', 'Lower Campus'],
+  ['mid', 'Quad'],
+  ['top', 'Upper Campus'],
 ];
 
 export interface Props {
-  day: DayAbbrev,
-  onChange: (day: DayAbbrev) => void,
+  region: RegionName,
+  onChange: (region: RegionName) => void,
 }
 
-export default function DaySelection({ day, onChange }: Props) {
+export default function RegionSelection({ region, onChange }: Props) {
   const classes = useStyles();
   const handleChange = React.useCallback(
-    (event: React.MouseEvent, newDay: DayAbbrev) => {
+    (event: React.MouseEvent, newDay: RegionName) => {
       onChange(newDay);
     },
     [onChange],
   );
   const sizeXS = useMediaQuery((theme: Theme) => theme.breakpoints.down('xs'));
-  const sizeSM = useMediaQuery((theme: Theme) => theme.breakpoints.down('sm'));
 
   return (
     <ToggleButtonGroup
       className={classes.root}
       exclusive
-      value={day}
+      value={region}
       onChange={handleChange}
       size={sizeXS ? 'small' : 'large'}
     >
       {dayTuples.map(([abbrev, name]) => (
         <ToggleButton value={abbrev} key={abbrev} className={classes.toggleButton}>
-          {sizeSM ? name.substr(0, 3) : name}
+          {name}
         </ToggleButton>
       ))}
     </ToggleButtonGroup>

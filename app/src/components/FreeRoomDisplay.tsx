@@ -4,13 +4,7 @@ import {
   ListItem,
   // makeStyles
 } from '@material-ui/core';
-import axios from 'axios';
-import { DayAbbrev, FullData, initData } from './interfaces';
-
-const DATA_URI_BASE = process.env.REACT_APP_DATA_URI_BASE || '/data';
-function getDataURI(region: string) {
-  return `${DATA_URI_BASE}/${region}.json`;
-}
+import { DayAbbrev, WeekData } from '../interfaces';
 
 // const useStyles = makeStyles(theme => ({
 //   flexGrow: {
@@ -22,25 +16,15 @@ function getDataURI(region: string) {
 // }));
 
 export interface Props {
+  data: WeekData,
   day: DayAbbrev,
   duration: number,
-  region: string,
   start: number,
   weeks: number,
 }
 
-export default function FreeRoomDisplay({ day, duration, region, start, weeks }: Props) {
+export default function FreeRoomDisplay({ data, day, duration, start, weeks }: Props) {
   // const classes = useStyles();
-  const [data, setData] = React.useState<FullData>(initData);
-  React.useEffect(
-    () => {
-      const uri = getDataURI(region);
-      axios.get(uri).then(
-        r => setData(r.data),
-      ).catch(console.error);
-    },
-    [region],
-  );
   const rooms = React.useMemo(
     () => {
       const dayData = data[day];

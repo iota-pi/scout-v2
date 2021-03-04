@@ -1,7 +1,7 @@
 import React from 'react';
 import { makeStyles, Theme, useMediaQuery } from '@material-ui/core';
 import { ToggleButton, ToggleButtonGroup } from '@material-ui/lab';
-import { RegionName } from './interfaces';
+import { DayAbbrev } from '../interfaces';
 
 
 const useStyles = makeStyles(theme => ({
@@ -15,40 +15,49 @@ const useStyles = makeStyles(theme => ({
 }));
 
 
-export const regions: RegionName[] = ['low', 'mid', 'top'];
+export const days: DayAbbrev[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+export function getToday() {
+  const index = (new Date().getDay() - 1) % 6;
+  return days[index];
+}
 
-const dayTuples: [RegionName, string][] = [
-  ['low', 'Lower Campus'],
-  ['mid', 'Quad'],
-  ['top', 'Upper Campus'],
+const dayTuples: [DayAbbrev, string][] = [
+  ['mon', 'Monday'],
+  ['tue', 'Tuesday'],
+  ['wed', 'Wednesday'],
+  ['thu', 'Thursday'],
+  ['fri', 'Friday'],
+  ['sat', 'Saturday'],
+  ['sun', 'Sunday'],
 ];
 
 export interface Props {
-  region: RegionName,
-  onChange: (region: RegionName) => void,
+  day: DayAbbrev,
+  onChange: (day: DayAbbrev) => void,
 }
 
-export default function RegionSelection({ region, onChange }: Props) {
+export default function DaySelection({ day, onChange }: Props) {
   const classes = useStyles();
   const handleChange = React.useCallback(
-    (event: React.MouseEvent, newDay: RegionName) => {
+    (event: React.MouseEvent, newDay: DayAbbrev) => {
       onChange(newDay);
     },
     [onChange],
   );
   const sizeXS = useMediaQuery((theme: Theme) => theme.breakpoints.down('xs'));
+  const sizeSM = useMediaQuery((theme: Theme) => theme.breakpoints.down('sm'));
 
   return (
     <ToggleButtonGroup
       className={classes.root}
       exclusive
-      value={region}
+      value={day}
       onChange={handleChange}
       size={sizeXS ? 'small' : 'large'}
     >
       {dayTuples.map(([abbrev, name]) => (
         <ToggleButton value={abbrev} key={abbrev} className={classes.toggleButton}>
-          {name}
+          {sizeSM ? name.substr(0, 3) : name}
         </ToggleButton>
       ))}
     </ToggleButtonGroup>

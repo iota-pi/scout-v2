@@ -1,13 +1,20 @@
 import React from 'react';
+import axios from 'axios';
 import { makeStyles } from '@material-ui/core/styles';
 import { Container, Grid, Typography } from '@material-ui/core';
-import DaySelection, { getToday } from './DaySelection';
-import TimeSelection, { getLikelyHour } from './TimeSelection';
-import DurationSelection from './DurationSelection';
-import FreeRoomDisplay from './FreeRoomDisplay';
-import RegionSelection from './RegionSelection';
-import { RegionName } from './interfaces';
+import DaySelection, { getToday } from './components/DaySelection';
+import TimeSelection, { getLikelyHour } from './components/TimeSelection';
+import DurationSelection from './components/DurationSelection';
+import FreeRoomDisplay from './components/FreeRoomDisplay';
+import RegionSelection from './components/RegionSelection';
+import { FullData, initData, RegionName } from './interfaces';
+import WeekSelection from './components/WeekSelection';
+import { getDefaultWeeks } from './util';
 
+const DATA_URI_BASE = process.env.REACT_APP_DATA_URI_BASE || '/data';
+function getDataURI(region: string) {
+  return `${DATA_URI_BASE}/${region}.json`;
+}
 
 const useStyles = makeStyles(theme => ({
   header: {
@@ -30,6 +37,21 @@ export default function App() {
   const [start, setStart] = React.useState(getLikelyHour());
   const [duration, setDuration] = React.useState(1);
   const [region, setRegion] = React.useState<RegionName>('mid');
+  const [weeks, setWeeks] = React.useState(0);
+
+  const [data, setData] = React.useState<FullData>(initData);
+  React.useEffect(
+    () => {
+      const uri = getDataURI(region);
+      axios.get(uri).then(
+        r => {
+          setData(r.data);
+          setWeeks(getDefaultWeeks(r.data));
+        },
+      ).catch(console.error);
+    },
+    [region],
+  );
 
   return (
     <div>
@@ -51,6 +73,10 @@ export default function App() {
               <DurationSelection duration={duration} onChange={setDuration} />
             </Grid>
           </Grid>
+
+          <Grid container className={classes.paddingTop}>
+            <WeekSelection weeks={weeks} onChange={setWeeks} />
+          </Grid>
         </Container>
       </div>
 
@@ -61,11 +87,11 @@ export default function App() {
           </Typography>
 
           <FreeRoomDisplay
+            data={data.data}
             day={day}
             duration={duration}
             start={start}
-            region={region}
-            weeks={1 << 1}
+            weeks={weeks}
           />
         </Container>
       </div>
