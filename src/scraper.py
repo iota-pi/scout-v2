@@ -134,11 +134,12 @@ def parse_bookings_page(page: BeautifulSoup) -> WeekData:
 
 def get_terms_and_times():
     """Gets the times for each term (aka. teaching period)"""
+
     def extract_term(text: str) -> str:
         return text.split()[-1]
 
     def extract_term_times(text: str) -> dict:
-        from_week, from_date, to_week, to_date = text.split(',')
+        from_week, from_date, to_week, to_date = text.split(",")
         return {
             "from_week": from_week,
             "from_date": parser.parse(from_date),
