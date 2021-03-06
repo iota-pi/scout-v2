@@ -57,7 +57,7 @@ if [[ "${1:-}" == "poetry" ]]; then
   ./dc.sh run --rm poetry "poetry ${@:2}"
 fi
 
-if [[ "${1:-}" =~ (py)?test ]]; then
+if [[ "${1:-}" =~ ^(py)?test$ ]]; then
   DOCKER_MAIN="${DOCKER_TEST}" \
   ./dc.sh run --rm application python -m pytest "${@:2}"
 fi
