@@ -10,6 +10,7 @@ RUN apt-get update -y \
     && apt-get install -y --no-install-recommends \
         curl \
         git \
+        zip \
     && rm -rf /var/lib/apt/lists/*
 
 # Install poetry

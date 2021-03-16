@@ -1,8 +1,11 @@
 [tool.poetry]
-name = "python-base"
+name = "scout"
 version = "0.1.0"
-description = "Python project starter template"
+description = "Room finder for UNSW"
 authors = ["David Adams"]
+#packages = [
+#  { include = "src" },
+#]
 
 [tool.poetry.dependencies]
 python = "^3.9"
