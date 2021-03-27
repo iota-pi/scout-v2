@@ -225,5 +225,5 @@ def get_hour(string):
     return float(string.replace(":30", ".5").replace(":00", ""))
 
 
-def main():
+def main(event=None, context=None):
     scrape()

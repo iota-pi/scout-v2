@@ -12,13 +12,10 @@ locals {
 resource "aws_lambda_function" "scraper" {
   function_name = "scout-scraper-${var.environment}"
 
-  # "lambda" is the filename within the zip file (main.js) and "handler"
-  # is the name of the property under which the handler function was
-  # exported in that file.
-  handler     = "scraper.handler"
+  handler     = "scraper.main"
   runtime     = "python3.8"
-  memory_size = 2048
-  timeout     = 300
+  memory_size = 1024
+  timeout     = 30
 
   s3_bucket = var.code_bucket
   s3_key    = "${local.application}/${var.environment}/${var.git_version}/package.zip"
