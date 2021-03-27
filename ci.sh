@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+cd "$(dirname "$(realpath "$0")")"
 
 source .env
 source .secrets.*
