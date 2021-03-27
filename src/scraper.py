@@ -99,7 +99,7 @@ def fetch_bookings_page(
     ]
     payload.extend([("rooms[]", room) for room in rooms])
     r = requests.post(FULL_URL, payload)
-    soup = BeautifulSoup(r.content, "lxml")
+    soup = BeautifulSoup(r.content)
     return soup
 
 
@@ -148,7 +148,7 @@ def get_terms_and_times():
         }
 
     r = requests.get(FULL_URL)
-    soup = BeautifulSoup(r.content, "lxml")
+    soup = BeautifulSoup(r.content)
     select = soup.find("select", id="teachingperiod")
     options = select.find_all("option")
     times = {

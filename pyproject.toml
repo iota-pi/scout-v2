@@ -9,7 +9,6 @@ authors = ["David Adams"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-lxml = "^4.6.2"
 requests = "^2.25.1"
 beautifulsoup4 = "^4.9.3"
 python-dateutil = "^2.8.1"
