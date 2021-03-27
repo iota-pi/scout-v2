@@ -49,7 +49,7 @@ resource "cloudflare_record" "www_cname" {
 }
 
 resource "cloudflare_page_rule" "redirect_to_root" {
-  count = var.environment == "production" ? 1 : 0
+  count = var.environment == "production" && local.subdomain == "" ? 1 : 0
 
   zone_id  = var.cloudflare_zone_id
   target   = "www.${local.domain}/*"
