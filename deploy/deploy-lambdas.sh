@@ -13,7 +13,6 @@ if [[ -n $existing_files && -z ${FORCE_UPDATE:-} ]]; then
   echo "No changes to lambda, skipping build and deploy."
   echo "Set the FORCE_UPDATE env variable to force an update."
   echo "Already built version is: $version"
-  echo
   exit
 fi
 
