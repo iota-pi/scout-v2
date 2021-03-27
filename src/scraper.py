@@ -75,7 +75,7 @@ def fetch_rooms(precincts: List[str]) -> List[str]:
         ("search_rooms", "Search"),
     )
     r = requests.post(FULL_URL, payload)
-    soup = BeautifulSoup(r.content, "lxml")
+    soup = BeautifulSoup(r.content)
     room_inputs = soup.find_all("input", attrs={"type": "checkbox", "name": "rooms[]"})
     room_ids = [room["value"] for room in room_inputs]
     return room_ids
