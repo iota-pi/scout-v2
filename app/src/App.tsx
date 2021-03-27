@@ -91,7 +91,7 @@ export default function App() {
 
       <div>
         <Container maxWidth="md" className={classes.section}>
-          <Typography variant="h3">
+          <Typography variant="h3" gutterBottom>
             Free Rooms
           </Typography>
 

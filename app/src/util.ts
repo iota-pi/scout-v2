@@ -1,3 +1,5 @@
+import { Color } from '@material-ui/core';
+import { amber, blue, brown, deepPurple, green, indigo, pink, red } from '@material-ui/core/colors';
 import { PeriodOption } from './components/WeekSelection';
 import { MetaData } from './interfaces';
 
@@ -54,4 +56,45 @@ export function periodToWeeks(period: PeriodOption, meta: MetaData): number {
   }
 
   return weeksNumber;
+}
+
+export function neatRoomName(rawRoom: string): string {
+  let room = rawRoom.replace(/^Gold\b/i, 'Goldstein');
+  room = room.replace(/^BUS\b/i, 'Business');
+  room = room.replace(/^Col\b/i, 'Colombo');
+  room = room.replace(/^Webst\b/i, 'Webster');
+  room = room.replace(/^RedC\b/i, 'Red Centre');
+  room = room.replace(/^Block\b/i, 'Blockhouse');
+  room = room.replace(/^TETB\b/i, 'Tyree');
+  room = room.replace(/^Mat\b/i, 'Mathews');
+  room = room.replace(/^Lib\b/i, 'Library');
+  room = room.replace(/^MorvB\b/i, 'Morven Brown');
+  room = room.replace(/^Sqhouse?/i, 'Squarehouse ');
+  room = room.replace(/^Jgoods/i, 'John Goodsell ');
+  return room;
+}
+
+export function roomToColour(room: string): Color | undefined {
+  const building = room.replace(/[^a-z].*$/i, '').toLowerCase().substring(0, 5);
+  // eslint-disable-next-line no-console
+  console.log(building);
+  const colorMap: { [building: string]: Color } = {
+    gold: amber,
+    tetb: amber,
+    agsm: amber,
+    sqhou: indigo,
+    quad: deepPurple,
+    law: deepPurple,
+    jgood: deepPurple,
+    bus: blue,
+    lib: blue,
+    redc: red,
+    webst: pink,
+    mat: pink,
+    biosc: green,
+    col: green,
+    block: green,
+    morvb: brown,
+  };
+  return colorMap[building];
 }
