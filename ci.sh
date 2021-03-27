@@ -61,6 +61,11 @@ if [[ "${1:-}" == "bundle" ]]; then
   ./dc.sh run -u $(id -u):$(id -g) --rm poetry "./deploy/bundle.sh"
 fi
 
+if [[ "${1:-}" == "deploy" ]]; then
+  export APP_NAME
+  ./deploy/deploy.sh "${@:2}"
+fi
+
 if [[ "${1:-}" =~ ^(py)?test$ ]]; then
   DOCKER_MAIN="${DOCKER_TEST}" \
   ./dc.sh run --rm application python -m pytest "${@:2}"

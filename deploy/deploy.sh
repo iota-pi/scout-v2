@@ -52,8 +52,8 @@ else
   fi
 fi
 
-# stage "Building Lambdas"
-# ./deploy-lambdas.sh
+stage "Building Lambdas"
+./deploy-lambdas.sh
 
 stage "Building App"
 ./deploy-app.sh

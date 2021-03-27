@@ -29,7 +29,6 @@ export REACT_APP_BASE_URL=scout.cross-code.org
 if [[ $environment != "production" ]]; then
   export REACT_APP_BASE_URL=$environment.$REACT_APP_BASE_URL
 fi
-export REACT_APP_DATA_URI_BASE=$data_uri
 
 max_age=0
 if [[ $environment == production ]]; then
