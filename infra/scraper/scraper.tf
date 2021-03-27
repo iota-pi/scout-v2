@@ -15,8 +15,8 @@ resource "aws_lambda_function" "scraper" {
   # "lambda" is the filename within the zip file (main.js) and "handler"
   # is the name of the property under which the handler function was
   # exported in that file.
-  handler     = "lambda.handler"
-  runtime     = "nodejs12.x"
+  handler     = "scraper.handler"
+  runtime     = "python3.8"
   memory_size = 2048
   timeout     = 300
 

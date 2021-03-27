@@ -223,3 +223,7 @@ def extract(cell: BeautifulSoup, mask: str) -> int:
 def get_hour(string):
     """Turns a 24-hour time string into a float"""
     return float(string.replace(":30", ".5").replace(":00", ""))
+
+
+def main():
+    scrape()
