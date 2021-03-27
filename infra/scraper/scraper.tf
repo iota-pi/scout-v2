@@ -12,7 +12,7 @@ locals {
 resource "aws_lambda_function" "scraper" {
   function_name = "scout-scraper-${var.environment}"
 
-  handler     = "scraper.main"
+  handler     = "scraper.handler"
   runtime     = "python3.8"
   memory_size = 1024
   timeout     = 30

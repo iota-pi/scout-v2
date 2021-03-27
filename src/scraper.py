@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 
+import json
+import logging
+import os
 from collections import defaultdict
 from datetime import datetime
 from dateutil import parser
 from typing import Dict, List, Sequence, Tuple
-import json
-import logging
 
 import requests
 from bs4 import BeautifulSoup
+
+from Writer import get_writer
 
 
 RoomData = Dict[float, int]
@@ -33,8 +36,10 @@ logger = logging.getLogger("scout-scraper")
 logger.setLevel(logging.INFO)
 
 
-def scrape():
+def scrape(output_bucket: str = None):
     """Scrape data for every campus region for the current term"""
+    writer = get_writer(output_bucket)
+
     logger.info(f"Fetching term metadata")
     times = get_terms_and_times()
     term = get_current_term(times)
@@ -42,7 +47,14 @@ def scrape():
     for region in REGIONS:
         logger.info(f"Parsing data for {region} campus region")
         data = scrape_region(region, times[term])
-        write_data(region, data, meta)
+        json_content = json.dumps(
+            {
+                "data": data,
+                "meta": meta,
+            }
+        )
+        path = f"data/{region}.json"
+        writer.write(path, json_content)
 
 
 def scrape_region(region: str, times: dict) -> WeekData:
@@ -52,16 +64,6 @@ def scrape_region(region: str, times: dict) -> WeekData:
     page = fetch_bookings_page(rooms, precincts, times)
     data = parse_bookings_page(page)
     return data
-
-
-def write_data(region: str, data: WeekData, meta: dict):
-    """Writes the region's data to a file"""
-    full_data = {
-        "data": data,
-        "meta": meta,
-    }
-    with open(f"data/{region}.json", "w") as f:
-        json.dump(full_data, f, indent=2)
 
 
 def fetch_rooms(precincts: List[str]) -> List[str]:
@@ -75,7 +77,7 @@ def fetch_rooms(precincts: List[str]) -> List[str]:
         ("search_rooms", "Search"),
     )
     r = requests.post(FULL_URL, payload)
-    soup = BeautifulSoup(r.content)
+    soup = BeautifulSoup(r.content, "html.parser")
     room_inputs = soup.find_all("input", attrs={"type": "checkbox", "name": "rooms[]"})
     room_ids = [room["value"] for room in room_inputs]
     return room_ids
@@ -99,7 +101,7 @@ def fetch_bookings_page(
     ]
     payload.extend([("rooms[]", room) for room in rooms])
     r = requests.post(FULL_URL, payload)
-    soup = BeautifulSoup(r.content)
+    soup = BeautifulSoup(r.content, "html.parser")
     return soup
 
 
@@ -148,7 +150,7 @@ def get_terms_and_times():
         }
 
     r = requests.get(FULL_URL)
-    soup = BeautifulSoup(r.content)
+    soup = BeautifulSoup(r.content, "html.parser")
     select = soup.find("select", id="teachingperiod")
     options = select.find_all("option")
     times = {
@@ -225,5 +227,6 @@ def get_hour(string):
     return float(string.replace(":30", ".5").replace(":00", ""))
 
 
-def main(event=None, context=None):
-    scrape()
+def handler(event=None, context=None):
+    bucket = os.environ["S3_OUTPUT_BUCKET"]
+    scrape(bucket)
