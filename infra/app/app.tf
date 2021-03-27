@@ -7,9 +7,9 @@ locals {
   component   = "app"
   bucket_name = "scout-app-${var.environment}"
   origin_id   = "app_s3_origin"
-  min_ttl     = var.environment == "production" ? 600 : 0
-  default_ttl = var.environment == "production" ? 1800 : 0
-  max_ttl     = 3600
+  min_ttl     = var.environment == "production" ? 300 : 0
+  default_ttl = var.environment == "production" ? 600 : 0
+  max_ttl     = 1800
   compress    = true
 
   allowed_methods = ["GET", "HEAD", "OPTIONS"]
