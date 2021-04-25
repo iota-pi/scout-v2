@@ -17,7 +17,7 @@ const useStyles = makeStyles(theme => ({
 
 export const days: DayAbbrev[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 export function getToday() {
-  const index = (new Date().getDay() - 1) % 6;
+  const index = (new Date().getDay() + 6) % 7;
   return days[index];
 }
 
