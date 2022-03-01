@@ -9,7 +9,7 @@ locals {
 }
 
 resource "aws_lambda_function" "scout_api" {
-  function_name = "scout-api"
+  function_name = "scout-api-${var.environment}"
 
   handler     = "lambda.handler"
   runtime     = "nodejs14.x"
