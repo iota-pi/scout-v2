@@ -23,3 +23,11 @@ module "scraper" {
   environment = local.environment
   git_version = var.scraper_version
 }
+
+module "lambda_api" {
+  source = "./api"
+
+  code_bucket = var.code_bucket
+  environment = local.environment
+  git_version = var.scraper_version
+}

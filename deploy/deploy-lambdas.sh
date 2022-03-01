@@ -5,7 +5,7 @@ cd "$(dirname "$(realpath "$0")")"
 outputs="$(./tf.sh output -json)"
 environment=$(echo "$outputs" | jq -r ".environment.value")
 code_bucket="crosscode-lambdas"
-version="$(./version.sh src)"
+version="$(./version.sh api src)"
 
 dest="s3://$code_bucket/$APP_NAME/$environment/$version"
 existing_files=$(aws s3 ls "$dest/" || true)
@@ -20,4 +20,18 @@ fi
   cd ..
   ./ci.sh bundle
   aws s3 cp "package.zip" "$dest/"
+)
+
+(
+  cd ../api
+  esbuild \
+    index.ts \
+    --outfile="build/lambda.js" \
+    --bundle \
+    --minify \
+    --platform=node \
+    --target=node14 \
+    --external:aws-sdk
+  (cd build && zip -r "../api.zip" .)
+  aws s3 cp "api.zip" "$dest/"
 )

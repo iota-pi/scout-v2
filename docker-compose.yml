@@ -4,6 +4,7 @@ services:
   application:
     image: ${DOCKER_MAIN}
     environment:
+      - DYNAMODB_ENDPOINT
       - MONGO_HOST
       - MONGO_DATABASE
       - MONGO_USERNAME
@@ -24,6 +25,14 @@ services:
     volumes:
       - .:/${APP_NAME}
     working_dir: /${APP_NAME}
+
+  dynamo:
+    image: amazon/dynamodb-local
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "."]
+    ports:
+      - 8000
+    volumes:
+      - dynamodata:/home/dynamodblocal
 
   mongo:
     image: mongo:4.4.1-bionic
@@ -53,5 +62,6 @@ services:
       - pg_data:/var/lib/postgresql/data/
 
 volumes:
+  dynamodata:
   mongodb_data:
   pg_data:
