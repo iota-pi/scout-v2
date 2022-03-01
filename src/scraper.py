@@ -18,8 +18,9 @@ RoomData = Dict[float, int]
 DayData = Dict[str, RoomData]
 WeekData = Dict[str, DayData]
 
+YEAR = datetime.now().year
 BASE_URL = "https://nss.cse.unsw.edu.au/tt"
-FULL_URL = f"{BASE_URL}/view_multirooms.php?dbafile=2021-KENS-COFA.DBA&campus=KENS"
+FULL_URL = f"{BASE_URL}/view_multirooms.php?dbafile={YEAR}-KENS-COFA.DBA&campus=KENS"
 REGIONS = (
     "mid",
     "low",
