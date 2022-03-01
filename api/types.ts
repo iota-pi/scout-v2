@@ -1,38 +1,26 @@
-export interface RegisterRequestBody {
-  action: 'register',
-  session: string | null,
-  data?: undefined,
+export interface OccupyRequestBody {
+  action: 'occupy',
+  rooms: string[],
+  time: string,
+  occupied: boolean,
 }
 
-export interface BroadcastRequestBody {
-  action: 'broadcast',
-  session: string,
-  data: BroadcastResponse,
+export interface CheckRequestBody {
+  action: 'check',
+  rooms: string[],
+  time: string,
+  occupied?: never,
 }
 
-export interface RequestSyncRequestBody {
-  action: 'request',
-  session: string,
-  data?: undefined,
+export interface ResponseBody {
+  error?: string,
+  results?: RoomResult[],
 }
 
-export interface BroadcastResponse {
-  type: 'fullsync' | 'sync',
-  content: any,
-  session?: never,
+export interface RoomResult {
+  room: string,
+  time: string,
+  occupied: boolean,
 }
 
-export interface RequestSyncResponse {
-  type: 'request',
-  content?: never,
-  session?: never,
-}
-
-export interface RegistrationResponse {
-  type: 'registration-success',
-  content?: never,
-  session: string,
-}
-
-export type RequestBody = RegisterRequestBody | BroadcastRequestBody | RequestSyncRequestBody;
-export type ResponseBody = RegistrationResponse | BroadcastResponse | RequestSyncResponse;
+export type RequestBody = OccupyRequestBody | CheckRequestBody;

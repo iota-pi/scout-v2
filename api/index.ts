@@ -1,172 +1,113 @@
-import { type APIGatewayProxyEvent } from 'aws-lambda';
-import AWS, { AWSError } from 'aws-sdk';
-import { randomBytes } from 'crypto';
-import { type RequestBody, type ResponseBody } from './types';
+import { APIGatewayProxyResult, type APIGatewayProxyEvent } from 'aws-lambda';
+import AWS from 'aws-sdk';
+import { ResponseBody, type RequestBody } from './types';
 
 const ddb = new AWS.DynamoDB.DocumentClient({
   apiVersion: '2012-08-10',
   region: 'ap-southeast-2',
 });
 
-const ONE_MONTH = 30 * 24 * 60 * 60 * 1000;
+const ONE_DAY = 24 * 60 * 60 * 1000;
 const TableName = process.env.TABLE_NAME!;
 
-export async function register(session: string | null | undefined, connection: string) {
-  const newSession = session || randomBytes(6).toString('base64');
-  const item = await ddb.get({
-    TableName,
-    Key: { session: newSession },
-  }).promise();
-  if (item.Item && item.Item.connections.includes(connection)) {
-    return newSession;
-  }
-
+export async function occupyRoom(room: string, time: string, occupied: boolean) {
   await ddb.update({
     TableName,
     Key: {
-      session: newSession,
+      room,
     },
-    UpdateExpression: 'SET #c = list_append(if_not_exists(#c, :empty), :new), #ttl = :ttl',
+    UpdateExpression: 'SET #state.#timeKey = :occupied, #ttl = :ttl',
     ExpressionAttributeNames: {
-      '#c': 'connections',
+      '#state': 'state',
+      '#timeKey': time,
       '#ttl': 'ttl',
     },
     ExpressionAttributeValues: {
-      ':new': [connection],
-      ':ttl': new Date().getTime() + ONE_MONTH,
-      ':empty': [],
+      ':ttl': new Date().getTime() + ONE_DAY,
+      ':occupied': occupied,
     },
   }).promise();
-  return newSession;
 }
 
-export async function deleteConnection(session: string, connection: string, retry = true): Promise<void> {
-  const item = await ddb.get({
-    TableName,
-    Key: { session },
-  }).promise();
-  try {
-    const connections = (item.Item?.connections || []) as string[];
-    await ddb.update({
-      TableName,
-      Key: { session },
-      ConditionExpression: 'attribute_exists(#c) AND size(#c) = :expectedSize',
-      ExpressionAttributeNames: {
-        '#c': 'connections',
-      },
-      ExpressionAttributeValues: {
-        ':c': connections.filter(c => c !== connection),
-        ':expectedSize': connections.length,
-      },
-      UpdateExpression: 'SET #c = :c',
-    }).promise();
-  } catch (error) {
-    console.error(`Failed to delete old connection (${connection}) from session ${session}`, error);
-    if (retry) {
-      console.info('Retrying deletion');
-      return deleteConnection(session, connection, false);
-    }
-  }
-}
-
-export async function getAllConnections(session: string) {
+export async function checkRoom(room: string, time: string) {
   const result = await ddb.get({
     TableName,
-    Key: { session },
+    Key: { room },
     ExpressionAttributeNames: {
-      '#connections': 'connections',
+      '#state': 'state',
+      '#timeKey': time,
     },
-    ProjectionExpression: '#connections',
+    ProjectionExpression: '#state.#timeKey',
   }).promise();
-  const item = result.Item as { connections: string[] };
-  return item.connections;
+  const item = result.Item as { state: { [time: string]: boolean } };
+  return item.state[time];
 }
 
-export async function getOtherConnections(session: string, connection: string) {
-  const allConnections = await getAllConnections(session);
-  return allConnections.filter(c => c !== connection);
+export async function checkRooms(rooms: string[], time: string) {
+  return Promise.all(rooms.map(room => checkRoom(room, time)));
 }
 
-const getHandlers = (event: APIGatewayProxyEvent, body: RequestBody) => {
-  const apigw = new AWS.ApiGatewayManagementApi({
-    apiVersion: '2018-11-29',
-    endpoint: event.requestContext.domainName + '/' + event.requestContext.stage,
-  });
-  function post(connection: string, data: ResponseBody) {
-    return apigw.postToConnection({
-      ConnectionId: connection,
-      Data: JSON.stringify(data),
-    }).promise();
-  }
+const getHandlers = (body: RequestBody) => {
+  const { occupied, rooms, time } = body;
 
-  const { session } = body;
-  const connection = event.requestContext.connectionId!;
+  const handlers: Record<RequestBody['action'], () => Promise<ResponseBody>> = {
+    occupy: async () => {
+      if (occupied === undefined) {
+        return {
+          error: 'Received action "occupy" with no value given for "occupied" status',
+        };
+      }
 
-  const handlers: Record<RequestBody['action'], () => Promise<void>> = {
-    register: async () => {
-      const newSession = await register(session, connection);
-      await post(connection, { type: 'registration-success', session: newSession });
-      if (session) {
-        await handlers.request();
+      const promises: Promise<void>[] = [];
+      for (const room of rooms) {
+        promises.push(occupyRoom(room, time, occupied));
       }
+      await Promise.all(promises);
+      return {
+        results: rooms.map(room => ({
+          occupied,
+          room,
+          time,
+        })),
+      };
     },
-    broadcast: async () => {
-      if (!session) {
-        throw new Error('Received broadcast request with no session');
-      }
-      if (!body.data){
-        throw new Error('Received broadcast request but no body to broadcast');
-      }
-      const connections = await getOtherConnections(session, connection);
-      const broadcastPromises = [];
-      for (const connection of connections) {
-        broadcastPromises.push(
-          post(connection, body.data).catch(
-            error => {
-              console.error(`Failed to push to connection ${connection}`, error);
-              if (error.statusCode === 410) {
-                return deleteConnection(session, connection);
-              }
-            },
-          ),
-        );
-      }
-      await Promise.all(broadcastPromises);
-    },
-    request: async () => {
-      if (!session) {
-        throw new Error('Received broadcast request with no session');
-      }
-      const connections = await getOtherConnections(session, connection);
-      for (const connection of connections) {
-        try {
-          await post(connection, { type: 'request' });
-          break;
-        } catch (error: unknown) {
-          console.error(`Failed to push to connection ${connection}`, error);
-          if ((error as AWSError).statusCode === 410) {
-            await deleteConnection(session, connection);
-          }
-        }
-      }
+    check: async () => {
+      const results = await checkRooms(rooms, time);
+      return {
+        results: results.map((result, i) => ({
+          occupied: result,
+          room: rooms[i],
+          time,
+        })),
+      };
     },
   };
   return handlers;
 }
 
 
-export async function handler(event: APIGatewayProxyEvent) {
+export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   if (!event.body) {
-    return { statusCode: 400 };
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: 'Missing body on request' }),
+    };
   }
   const body: RequestBody = JSON.parse(event.body);
-  const handlers = getHandlers(event, body);
+  const handlers = getHandlers(body);
   const actionFunc = handlers[body.action];
   if (actionFunc) {
-    await actionFunc();
-    return { statusCode: 200 };
+    const result = await actionFunc();
+    const statusCode = result.error ? 500 : 200;
+    return {
+      statusCode,
+      body: JSON.stringify(result),
+    };
   }
-  return { statusCode: 400 };
+  return {
+    statusCode: 400,
+    body: JSON.stringify({ error: `Could not find action "${body.action}"` }),
+  };
 }
 
 export default handler;
