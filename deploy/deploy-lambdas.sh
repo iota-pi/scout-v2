@@ -16,15 +16,16 @@ if [[ -n $existing_files && -z ${FORCE_UPDATE:-} ]]; then
   exit
 fi
 
+# Build scraper
 (
   cd ..
   ./ci.sh bundle
-  aws s3 cp "package.zip" "$dest/"
 )
 
+# Build API lambda
 (
   cd ../api
-  esbuild \
+  yarn esbuild \
     index.ts \
     --outfile="build/lambda.js" \
     --bundle \
@@ -33,5 +34,11 @@ fi
     --target=node14 \
     --external:aws-sdk
   (cd build && zip -r "../api.zip" .)
-  aws s3 cp "api.zip" "$dest/"
+)
+
+# Upload lambda bundles
+(
+  cd ..
+  aws s3 cp "package.zip" "$dest/"
+  aws s3 cp "api/api.zip" "$dest/"
 )

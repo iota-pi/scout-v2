@@ -18,7 +18,6 @@ resource "aws_lambda_function" "scout_api" {
 
   s3_bucket        = var.code_bucket
   s3_key           = "${local.application}/${var.environment}/${var.git_version}/api.zip"
-  source_code_hash = filebase64sha256("../api/api.zip")
 
   environment {
     variables = {
@@ -163,7 +162,6 @@ resource "aws_api_gateway_integration" "scout_api_lambda_root" {
 resource "aws_api_gateway_deployment" "scout_api_deployment" {
   depends_on = [
     aws_api_gateway_integration.scout_api_lambda_root,
-    aws_cloudwatch_log_group.debugging,
   ]
 
   rest_api_id = aws_api_gateway_rest_api.scout_api_gateway.id

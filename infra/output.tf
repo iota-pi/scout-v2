@@ -7,5 +7,5 @@ output "app_bucket" {
 }
 
 output "invoke_url" {
-  value = module.lambda.invoke_url
+  value = module.lambda_api.invoke_url
 }

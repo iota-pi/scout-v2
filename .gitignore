@@ -10,5 +10,5 @@ venv/
 
 .secrets.*
 
-.terraform*
+.terraform/
 *.tfstate
