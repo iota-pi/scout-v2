@@ -20,7 +20,7 @@ docker_args=()
   fi
 
   export TF_VAR_app_version="$(./version.sh app)"
-  export TF_VAR_scraper_version="$(./version.sh src)"
+  export TF_VAR_scraper_version="$(./version.sh api src)"
   export TF_IN_AUTOMATION="1"
 
   docker run \
