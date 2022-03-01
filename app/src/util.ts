@@ -76,8 +76,6 @@ export function neatRoomName(rawRoom: string): string {
 
 export function roomToColour(room: string): Color | undefined {
   const building = room.replace(/[^a-z].*$/i, '').toLowerCase().substring(0, 5);
-  // eslint-disable-next-line no-console
-  console.log(building);
   const colorMap: { [building: string]: Color } = {
     gold: amber,
     tetb: amber,
