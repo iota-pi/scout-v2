@@ -33,8 +33,6 @@ export default function FreeRoomDisplay({ data, day, duration, start, weeks }: P
         let booked = false;
         for (let i = 0; i < duration; i++) {
           const hour = start + i;
-          // eslint-disable-next-line no-console
-          console.log(roomData[hour], weeks);
           const overlapWeeks = roomData[hour] & weeks;
           if (overlapWeeks > 0) {
             booked = true;
@@ -69,8 +67,6 @@ export default function FreeRoomDisplay({ data, day, duration, start, weeks }: P
         const roomColor = roomToColour(room);
         const backgroundColor = roomColor ? roomColor[700] : undefined;
         const color = backgroundColor ? theme.palette.getContrastText(backgroundColor) : undefined;
-        // eslint-disable-next-line no-console
-        console.log(color);
         return (
           <Grid
             item
