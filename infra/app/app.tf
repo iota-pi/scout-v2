@@ -4,8 +4,8 @@ provider "aws" {
 
 locals {
   application = "scout"
-  component   = "app"
   bucket_name = "scout-app-${var.environment}"
+  component   = "app"
   origin_id   = "app_s3_origin"
   min_ttl     = var.environment == "production" ? 300 : 0
   default_ttl = var.environment == "production" ? 600 : 0
