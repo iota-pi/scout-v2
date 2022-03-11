@@ -11,7 +11,7 @@ export async function checkRooms(rooms: string[], day: string, start: number, du
     start,
     duration,
   };
-  const response = await axios.post(`${BASE_URL}/rooms`, payload);
+  const response = await axios.post(`${BASE_URL}`, payload);
   if (response.data) {
     console.warn(response.data);
   }
