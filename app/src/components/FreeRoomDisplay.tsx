@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
+  Checkbox,
   Grid, makeStyles, useTheme,
 } from '@material-ui/core';
 import { DayAbbrev, WeekData } from '../interfaces';
 import { neatRoomName, roomToColour } from '../util';
+import { checkRooms } from '../api';
 
 
 export interface Props {
@@ -24,6 +26,7 @@ const useStyles = makeStyles(theme => ({
 export default function FreeRoomDisplay({ data, day, duration, start, weeks }: Props) {
   const classes = useStyles();
   const theme = useTheme();
+  // const occupied = useState<Record<string, boolean | undefined>>({});
   const rooms = React.useMemo(
     () => {
       const dayData = data[day];
@@ -60,6 +63,19 @@ export default function FreeRoomDisplay({ data, day, duration, start, weeks }: P
     },
     [data, day, duration, start, weeks],
   );
+  const toggleRoom = useCallback(
+    (room: string) => () => {
+      console.warn(room);
+    },
+    [],
+  );
+
+  useEffect(
+    () => {
+      checkRooms(rooms, day, start, duration);
+    },
+    [day, duration, rooms, start],
+  );
 
   return (
     <Grid container>
@@ -78,6 +94,11 @@ export default function FreeRoomDisplay({ data, day, duration, start, weeks }: P
             key={room}
           >
             {neatRoomName(room)}
+
+            <Checkbox
+              value={false}
+              onClick={toggleRoom(room)}
+            />
           </Grid>
         );
       })}

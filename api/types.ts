@@ -1,14 +1,18 @@
 export interface OccupyRequestBody {
   action: 'occupy',
   rooms: string[],
-  time: string,
+  day: string,
+  start: number,
+  duration: number,
   occupied: boolean,
 }
 
 export interface CheckRequestBody {
   action: 'check',
   rooms: string[],
-  time: string,
+  day: string,
+  start: number,
+  duration: number,
   occupied?: never,
 }
 
@@ -19,7 +23,8 @@ export interface ResponseBody {
 
 export interface RoomResult {
   room: string,
-  time: string,
+  day: string,
+  start: number,
   occupied: boolean,
 }
 

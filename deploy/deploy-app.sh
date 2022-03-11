@@ -5,6 +5,7 @@ cd "$(dirname "$(realpath "$0")")"
 outputs="$(./tf.sh output -json)"
 environment=$(echo "$outputs" | jq -r ".environment.value")
 app_bucket=$(echo "$outputs" | jq -r ".app_bucket.value")
+invoke_url=$(echo "$outputs" | jq -r ".invoke_url.value")
 
 if [[ -z $app_bucket || $app_bucket == null ]]; then
   echo "App bucket has not been deployed yet. Skipping building app."
@@ -28,6 +29,7 @@ echo "-----------------$environment_hyphens"
 export REACT_APP_BASE_URL=scout.cross-code.org
 if [[ $environment != "production" ]]; then
   export REACT_APP_BASE_URL=$environment.$REACT_APP_BASE_URL
+  export REACT_APP_API_ENDPOINT=$invoke_url
 fi
 
 max_age=0

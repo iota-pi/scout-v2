@@ -10,7 +10,12 @@ const ddb = new AWS.DynamoDB.DocumentClient({
 const ONE_DAY = 24 * 60 * 60 * 1000;
 const TableName = process.env.TABLE_NAME!;
 
-export async function occupyRoom(room: string, time: string, occupied: boolean) {
+function getTimeKey(day: string, hour: number) {
+  return `${day}${hour}`;
+}
+
+export async function occupyRoom(room: string, day: string, hour: number, occupied: boolean) {
+  const time = getTimeKey(day, hour);
   await ddb.update({
     TableName,
     Key: {
@@ -29,26 +34,30 @@ export async function occupyRoom(room: string, time: string, occupied: boolean) 
   }).promise();
 }
 
-export async function checkRoom(room: string, time: string) {
+export async function checkRoom(room: string, day: string, start: number, duration: number) {
   const result = await ddb.get({
     TableName,
     Key: { room },
     ExpressionAttributeNames: {
       '#state': 'state',
-      '#timeKey': time,
     },
-    ProjectionExpression: '#state.#timeKey',
+    ProjectionExpression: '#state',
   }).promise();
   const item = result.Item as { state: { [time: string]: boolean } };
-  return item.state[time];
+  let occupied = false;
+  for (let hour = start; hour < start + duration; ++hour) {
+    const time = getTimeKey(day, hour);
+    occupied ||= item.state[time];
+  }
+  return occupied;
 }
 
-export async function checkRooms(rooms: string[], time: string) {
-  return Promise.all(rooms.map(room => checkRoom(room, time)));
+export async function checkRooms(rooms: string[], day: string, start: number, duration: number) {
+  return Promise.all(rooms.map(room => checkRoom(room, day, start, duration)));
 }
 
 const getHandlers = (body: RequestBody) => {
-  const { occupied, rooms, time } = body;
+  const { occupied, rooms, day, start, duration } = body;
 
   const handlers: Record<RequestBody['action'], () => Promise<ResponseBody>> = {
     occupy: async () => {
@@ -60,24 +69,28 @@ const getHandlers = (body: RequestBody) => {
 
       const promises: Promise<void>[] = [];
       for (const room of rooms) {
-        promises.push(occupyRoom(room, time, occupied));
+        for (let hour = start; hour < start + duration; ++hour) {
+          promises.push(occupyRoom(room, day, hour, occupied));
+        }
       }
       await Promise.all(promises);
       return {
         results: rooms.map(room => ({
           occupied,
           room,
-          time,
+          day,
+          start,
         })),
       };
     },
     check: async () => {
-      const results = await checkRooms(rooms, time);
+      const results = await checkRooms(rooms, day, start, duration);
       return {
         results: results.map((result, i) => ({
           occupied: result,
           room: rooms[i],
-          time,
+          day,
+          start,
         })),
       };
     },
@@ -85,12 +98,29 @@ const getHandlers = (body: RequestBody) => {
   return handlers;
 }
 
+export function getResponseHeaders(origin: string) {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  const originAllowed = (
+    /^https?:\/\/([^.]+\.)*scout\.cross-code\.org$/.test(origin)
+    || /^http:\/\/localhost:[0-9]+$/.test(origin)
+  );
+  if (originAllowed) {
+    headers['Access-Control-Allow-Origin'] = origin;
+    headers['Access-Control-Allow-Headers'] = '*';
+    headers['Access-Control-Allow-Methods'] = '*';
+  }
+  return headers;
+}
 
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  const headers = getResponseHeaders(event.headers.origin || '');
   if (!event.body) {
     return {
-      statusCode: 400,
       body: JSON.stringify({ error: 'Missing body on request' }),
+      headers,
+      statusCode: 400,
     };
   }
   const body: RequestBody = JSON.parse(event.body);
@@ -100,13 +130,15 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const result = await actionFunc();
     const statusCode = result.error ? 500 : 200;
     return {
-      statusCode,
       body: JSON.stringify(result),
+      headers,
+      statusCode,
     };
   }
   return {
-    statusCode: 400,
     body: JSON.stringify({ error: `Could not find action "${body.action}"` }),
+    headers,
+    statusCode: 400,
   };
 }
 
