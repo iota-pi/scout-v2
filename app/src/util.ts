@@ -71,6 +71,7 @@ export function neatRoomName(rawRoom: string): string {
   room = room.replace(/^MorvB\b/i, 'Morven Brown');
   room = room.replace(/^Sqhouse?/i, 'Squarehouse ');
   room = room.replace(/^Jgoods/i, 'John Goodsell ');
+  room = room.replace(/^Ainswth/i, 'Ainsworth ');
   return room;
 }
 
@@ -87,12 +88,13 @@ export function roomToColour(room: string): Color | undefined {
     bus: blue,
     lib: blue,
     redc: red,
-    webst: pink,
     mat: pink,
+    webst: green,
     biosc: green,
-    col: green,
+    col: pink,
     block: green,
     morvb: brown,
+    ainsw: indigo,
   };
   return colorMap[building];
 }
