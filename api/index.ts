@@ -43,6 +43,9 @@ export async function checkRoom(room: string, day: string, start: number, durati
     },
     ProjectionExpression: '#state',
   }).promise();
+  if (!result.Item) {
+    return false;
+  }
   const item = result.Item as { state: { [time: string]: boolean } };
   let occupied = false;
   for (let hour = start; hour < start + duration; ++hour) {
