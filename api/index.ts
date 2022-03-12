@@ -116,6 +116,15 @@ export function getResponseHeaders(origin: string) {
 
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   const headers = getResponseHeaders(event.headers.origin || '');
+  const method = event.httpMethod.toUpperCase();
+  if (method === 'OPTIONS') {
+    return {
+      body: '',
+      headers,
+      statusCode: 204,
+    };
+  }
+
   if (!event.body) {
     return {
       body: JSON.stringify({ error: 'Missing body on request' }),
