@@ -190,5 +190,5 @@ resource "aws_cloudwatch_log_group" "debugging" {
 }
 
 output "invoke_url" {
-  value = aws_api_gateway_deployment.scout_api_deployment.invoke_url
+  value = aws_api_gateway_stage.scout_api_stage.invoke_url
 }
