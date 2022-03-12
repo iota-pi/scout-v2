@@ -102,10 +102,10 @@ resource "aws_cloudwatch_log_group" "lambda_logs" {
 resource "aws_dynamodb_table" "scout_rooms" {
   name         = "ScoutRoomState_${var.environment}"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "roomId"
+  hash_key     = "room"
 
   attribute {
-    name = "roomId"
+    name = "room"
     type = "S"
   }
 
@@ -160,12 +160,33 @@ resource "aws_api_gateway_integration" "scout_api_lambda_root" {
 
 
 resource "aws_api_gateway_deployment" "scout_api_deployment" {
-  depends_on = [
-    aws_api_gateway_integration.scout_api_lambda_root,
-  ]
-
   rest_api_id = aws_api_gateway_rest_api.scout_api_gateway.id
-  stage_name  = var.environment
+
+  triggers = {
+    redeployment = sha1(jsonencode([
+      aws_api_gateway_resource.scout_api_proxy,
+      aws_api_gateway_method.scout_api_proxy_root,
+      aws_api_gateway_integration.scout_api_lambda_root,
+    ]))
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_api_gateway_stage" "scout_api_stage" {
+  deployment_id = aws_api_gateway_deployment.scout_api_deployment.id
+  rest_api_id   = aws_api_gateway_rest_api.scout_api_gateway.id
+  stage_name    = var.environment
+
+  depends_on = [aws_cloudwatch_log_group.debugging]
+}
+
+resource "aws_cloudwatch_log_group" "debugging" {
+  name = "API-Gateway-Execution-Logs_${aws_api_gateway_rest_api.scout_api_gateway.id}/${var.environment}"
+
+  retention_in_days = 7
 }
 
 output "invoke_url" {
