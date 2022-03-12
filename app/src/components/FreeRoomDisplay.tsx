@@ -1,11 +1,12 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Checkbox,
   Grid, makeStyles, useTheme,
 } from '@material-ui/core';
 import { DayAbbrev, WeekData } from '../interfaces';
 import { neatRoomName, roomToColour } from '../util';
-import { checkRooms } from '../api';
+import { checkRooms, occupyRoom } from '../api';
+import { RoomResult } from '../../../api/types';
 
 
 export interface Props {
@@ -26,7 +27,7 @@ const useStyles = makeStyles(theme => ({
 export default function FreeRoomDisplay({ data, day, duration, start, weeks }: Props) {
   const classes = useStyles();
   const theme = useTheme();
-  // const occupied = useState<Record<string, boolean | undefined>>({});
+  const [occupied, setOccupied] = useState<Record<string, boolean | undefined>>({});
   const rooms = React.useMemo(
     () => {
       const dayData = data[day];
@@ -63,18 +64,36 @@ export default function FreeRoomDisplay({ data, day, duration, start, weeks }: P
     },
     [data, day, duration, start, weeks],
   );
-  const toggleRoom = useCallback(
-    (room: string) => () => {
-      console.warn(room);
+
+  const handleResults = useCallback(
+    (results: RoomResult[] | undefined) => {
+      if (results) {
+        setOccupied(oldOccupied => {
+          const newOccupied = { ...oldOccupied };
+          for (const room of results) {
+            newOccupied[room.room] = room.occupied;
+          }
+          return newOccupied;
+        });
+      }
     },
     [],
   );
 
+  const toggleRoom = useCallback(
+    (room: string) => () => {
+      occupyRoom([room], day, start, duration, !occupied[room]).then(handleResults);
+    },
+    [day, duration, handleResults, occupied, start],
+  );
+
   useEffect(
     () => {
-      checkRooms(rooms, day, start, duration);
+      if (rooms.length) {
+        checkRooms(rooms, day, start, duration).then(handleResults);
+      }
     },
-    [day, duration, rooms, start],
+    [day, duration, handleResults, rooms, start],
   );
 
   return (
@@ -96,7 +115,7 @@ export default function FreeRoomDisplay({ data, day, duration, start, weeks }: P
             {neatRoomName(room)}
 
             <Checkbox
-              value={false}
+              value={occupied[room]}
               onClick={toggleRoom(room)}
             />
           </Grid>

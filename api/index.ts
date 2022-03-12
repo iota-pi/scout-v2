@@ -1,5 +1,5 @@
 import { APIGatewayProxyResult, type APIGatewayProxyEvent } from 'aws-lambda';
-import AWS from 'aws-sdk';
+import AWS, { AWSError } from 'aws-sdk';
 import { ResponseBody, type RequestBody } from './types';
 
 const ddb = new AWS.DynamoDB.DocumentClient({
@@ -15,12 +15,12 @@ function getTimeKey(day: string, hour: number) {
 }
 
 export async function occupyRoom(room: string, day: string, hour: number, occupied: boolean) {
+  const Key = { room };
   const time = getTimeKey(day, hour);
-  await ddb.update({
+  const ttl = new Date().getTime() + ONE_DAY;
+  const promise = ddb.update({
     TableName,
-    Key: {
-      room,
-    },
+    Key,
     UpdateExpression: 'SET #state.#timeKey = :occupied, #ttl = :ttl',
     ExpressionAttributeNames: {
       '#state': 'state',
@@ -28,10 +28,28 @@ export async function occupyRoom(room: string, day: string, hour: number, occupi
       '#ttl': 'ttl',
     },
     ExpressionAttributeValues: {
-      ':ttl': new Date().getTime() + ONE_DAY,
+      ':ttl': ttl,
       ':occupied': occupied,
     },
-  }).promise();
+  }).promise().catch((error: AWSError) => {
+    if (error.code === 'ValidationException') {
+      return ddb.update({
+        TableName,
+        Key,
+        UpdateExpression: 'SET #state = :map, #ttl = :ttl',
+        ConditionExpression: 'attribute_not_exists(#state)',
+        ExpressionAttributeNames: {
+          '#state': 'state',
+          '#ttl': 'ttl',
+        },
+        ExpressionAttributeValues: {
+          ':ttl': ttl,
+          ':map': { time: occupied },
+        },
+      }).promise();
+    }
+  });
+  await promise;
 }
 
 export async function checkRoom(room: string, day: string, start: number, duration: number) {
