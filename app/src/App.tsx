@@ -1,7 +1,7 @@
 import React from 'react';
 import axios from 'axios';
 import { makeStyles } from '@material-ui/core/styles';
-import { Container, Grid, Typography } from '@material-ui/core';
+import { Container, Fade, Grid, LinearProgress, Typography } from '@material-ui/core';
 import DaySelection, { getToday } from './components/DaySelection';
 import TimeSelection, { getLikelyHour } from './components/TimeSelection';
 import DurationSelection from './components/DurationSelection';
@@ -30,6 +30,9 @@ const useStyles = makeStyles(theme => ({
   paddingTop: {
     paddingTop: theme.spacing(2),
   },
+  loading: {
+    height: 2,
+  },
 }));
 
 export default function App() {
@@ -40,6 +43,7 @@ export default function App() {
   const [region, setRegion] = React.useState<RegionName>('mid');
   const [period, setPeriod] = React.useState(PeriodOption.current);
   const [data, setData] = React.useState<FullData>(initData);
+  const [loading, setLoading] = React.useState(false);
 
   const weeks = React.useMemo(
     () => periodToWeeks(period, data.meta),
@@ -89,6 +93,14 @@ export default function App() {
         </Container>
       </div>
 
+      <Fade in={loading}>
+        <LinearProgress
+          variant="indeterminate"
+          color="secondary"
+          className={classes.loading}
+        />
+      </Fade>
+
       <div>
         <Container maxWidth="md" className={classes.section}>
           <Typography variant="h3" gutterBottom>
@@ -99,6 +111,7 @@ export default function App() {
             data={data.data}
             day={day}
             duration={duration}
+            setLoading={setLoading}
             start={start}
             weeks={weeks}
           />

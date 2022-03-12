@@ -17,6 +17,7 @@ export interface Props {
   duration: number,
   start: number,
   weeks: number,
+  setLoading: (loading: boolean) => void,
 }
 
 const useStyles = makeStyles(theme => ({
@@ -27,7 +28,9 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-export default function FreeRoomDisplay({ data, day, duration, start, weeks }: Props) {
+export default function FreeRoomDisplay(
+  { data, day, duration, setLoading, start, weeks }: Props,
+) {
   const classes = useStyles();
   const theme = useTheme();
   const [occupied, setOccupied] = useState<Record<string, boolean | undefined>>({});
@@ -70,6 +73,7 @@ export default function FreeRoomDisplay({ data, day, duration, start, weeks }: P
 
   const handleResults = useCallback(
     (results: RoomResult[] | undefined) => {
+      setLoading(false);
       if (results) {
         setOccupied(oldOccupied => {
           const newOccupied = { ...oldOccupied };
@@ -80,23 +84,25 @@ export default function FreeRoomDisplay({ data, day, duration, start, weeks }: P
         });
       }
     },
-    [],
+    [setLoading],
   );
 
   const toggleRoom = useCallback(
     (room: string) => () => {
+      setLoading(true);
       occupyRoom([room], day, start, duration, !occupied[room]).then(handleResults);
     },
-    [day, duration, handleResults, occupied, start],
+    [day, duration, handleResults, occupied, setLoading, start],
   );
 
   useEffect(
     () => {
       if (rooms.length) {
+        setLoading(true);
         checkRooms(rooms, day, start, duration).then(handleResults);
       }
     },
-    [day, duration, handleResults, rooms, start],
+    [day, duration, handleResults, rooms, setLoading, start],
   );
 
   return (
