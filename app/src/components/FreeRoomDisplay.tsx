@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Checkbox,
+  FormControlLabel,
   Grid, makeStyles, useTheme,
 } from '@material-ui/core';
+import { IndeterminateCheckBox } from '@material-ui/icons';
 import { DayAbbrev, WeekData } from '../interfaces';
 import { neatRoomName, roomToColour } from '../util';
 import { checkRooms, occupyRoom } from '../api';
@@ -19,8 +21,9 @@ export interface Props {
 
 const useStyles = makeStyles(theme => ({
   room: {
-    padding: theme.spacing(2),
+    padding: theme.spacing(1, 2),
     ...theme.typography.body1,
+    transition: theme.transitions.create('opacity'),
   },
 }));
 
@@ -102,6 +105,9 @@ export default function FreeRoomDisplay({ data, day, duration, start, weeks }: P
         const roomColor = roomToColour(room);
         const backgroundColor = roomColor ? roomColor[700] : undefined;
         const color = backgroundColor ? theme.palette.getContrastText(backgroundColor) : undefined;
+        const dark = color?.toLowerCase().includes('fff');
+        const checked = occupied[room] || false;
+        const opacity = checked ? 0.6 : undefined;
         return (
           <Grid
             item
@@ -109,14 +115,19 @@ export default function FreeRoomDisplay({ data, day, duration, start, weeks }: P
             sm={6}
             md={4}
             className={classes.room}
-            style={{ backgroundColor, color }}
+            style={{ backgroundColor, color, opacity }}
             key={room}
           >
-            {neatRoomName(room)}
-
-            <Checkbox
-              value={occupied[room]}
-              onClick={toggleRoom(room)}
+            <FormControlLabel
+              control={(
+                <Checkbox
+                  checked={checked}
+                  onClick={toggleRoom(room)}
+                  color={dark ? 'primary' : 'secondary'}
+                  checkedIcon={<IndeterminateCheckBox />}
+                />
+              )}
+              label={neatRoomName(room)}
             />
           </Grid>
         );
