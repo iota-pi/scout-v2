@@ -102,10 +102,10 @@ resource "aws_cloudwatch_log_group" "lambda_logs" {
 resource "aws_dynamodb_table" "scout_rooms" {
   name         = "ScoutRoomState_${var.environment}"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "room"
+  hash_key     = "timeslot"
 
   attribute {
-    name = "room"
+    name = "timeslot"
     type = "S"
   }
 

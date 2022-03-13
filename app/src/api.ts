@@ -8,6 +8,7 @@ export async function checkRooms(
   day: string,
   start: number,
   duration: number,
+  week: number,
 ) {
   const payload: CheckRequestBody = {
     action: 'check',
@@ -15,6 +16,7 @@ export async function checkRooms(
     day,
     start,
     duration,
+    week,
   };
   const response = await axios.post(`${BASE_URL}`, payload);
   if (response.data) {
@@ -32,6 +34,7 @@ export async function occupyRoom(
   day: string,
   start: number,
   duration: number,
+  week: number,
   occupied: boolean,
 ) {
   const payload: OccupyRequestBody = {
@@ -41,6 +44,7 @@ export async function occupyRoom(
     start,
     duration,
     occupied,
+    week,
   };
   const response = await axios.post(`${BASE_URL}`, payload);
   if (response.data) {

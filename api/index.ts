@@ -10,21 +10,26 @@ const ddb = new AWS.DynamoDB.DocumentClient({
 const ONE_DAY = 24 * 60 * 60 * 1000;
 const TableName = process.env.TABLE_NAME!;
 
-function getTimeKey(day: string, hour: number) {
-  return `${day}${hour}`;
+function getTimeslotId(day: string, hour: number, week: number) {
+  return `${day}${hour}w${week}`;
 }
 
-export async function occupyRoom(room: string, day: string, hour: number, occupied: boolean) {
-  const Key = { room };
-  const time = getTimeKey(day, hour);
+export async function occupyRoom(
+  room: string,
+  day: string,
+  hour: number,
+  week: number,
+  occupied: boolean,
+) {
+  const timeslot = getTimeslotId(day, hour, week);
+  const Key = { timeslot };
   const ttl = new Date().getTime() + ONE_DAY;
   const promise = ddb.update({
     TableName,
     Key,
-    UpdateExpression: 'SET #state.#timeKey = :occupied, #ttl = :ttl',
+    UpdateExpression: 'SET rooms.#room = :occupied, #ttl = :ttl',
     ExpressionAttributeNames: {
-      '#state': 'state',
-      '#timeKey': time,
+      '#room': room,
       '#ttl': 'ttl',
     },
     ExpressionAttributeValues: {
@@ -36,15 +41,14 @@ export async function occupyRoom(room: string, day: string, hour: number, occupi
       return ddb.update({
         TableName,
         Key,
-        UpdateExpression: 'SET #state = :map, #ttl = :ttl',
-        ConditionExpression: 'attribute_not_exists(#state)',
+        UpdateExpression: 'SET rooms = :map, #ttl = :ttl',
+        ConditionExpression: 'attribute_not_exists(rooms)',
         ExpressionAttributeNames: {
-          '#state': 'state',
           '#ttl': 'ttl',
         },
         ExpressionAttributeValues: {
           ':ttl': ttl,
-          ':map': { time: occupied },
+          ':map': { [room]: occupied },
         },
       }).promise();
     }
@@ -52,33 +56,37 @@ export async function occupyRoom(room: string, day: string, hour: number, occupi
   await promise;
 }
 
-export async function checkRoom(room: string, day: string, start: number, duration: number) {
-  const result = await ddb.get({
-    TableName,
-    Key: { room },
-    ExpressionAttributeNames: {
-      '#state': 'state',
-    },
-    ProjectionExpression: '#state',
-  }).promise();
-  if (!result.Item) {
-    return false;
-  }
-  const item = result.Item as { state: { [time: string]: boolean } };
-  let occupied = false;
+export async function checkRooms(
+  rooms: string[],
+  day: string,
+  start: number,
+  duration: number,
+  week: number,
+) {
+  const promises: Promise<Record<string, boolean>>[] = [];
   for (let hour = start; hour < start + duration; ++hour) {
-    const time = getTimeKey(day, hour);
-    occupied ||= item.state[time];
+    const timeslot = getTimeslotId(day, start, week);
+    const Key = { timeslot };
+    promises.push(
+      ddb.get({
+        TableName,
+        Key,
+        ProjectionExpression: 'rooms',
+      }).promise().then(
+        result => (result.Item ? result.Item.rooms : {}),
+      ),
+    );
   }
-  return occupied;
-}
-
-export async function checkRooms(rooms: string[], day: string, start: number, duration: number) {
-  return Promise.all(rooms.map(room => checkRoom(room, day, start, duration)));
+  const timeslots = await Promise.all(promises);
+  const result: Record<string, boolean> = {};
+  for (const room of rooms) {
+    result[room] = timeslots.some(timeslot => timeslot[room]);
+  }
+  return result;
 }
 
 const getHandlers = (body: RequestBody) => {
-  const { occupied, rooms, day, start, duration } = body;
+  const { day, duration, occupied, rooms, start, week } = body;
 
   const handlers: Record<RequestBody['action'], () => Promise<ResponseBody>> = {
     occupy: async () => {
@@ -91,7 +99,7 @@ const getHandlers = (body: RequestBody) => {
       const promises: Promise<void>[] = [];
       for (const room of rooms) {
         for (let hour = start; hour < start + duration; ++hour) {
-          promises.push(occupyRoom(room, day, hour, occupied));
+          promises.push(occupyRoom(room, day, hour, week, occupied));
         }
       }
       await Promise.all(promises);
@@ -101,17 +109,19 @@ const getHandlers = (body: RequestBody) => {
           room,
           day,
           start,
+          week,
         })),
       };
     },
     check: async () => {
-      const results = await checkRooms(rooms, day, start, duration);
+      const results = await checkRooms(rooms, day, start, week, duration);
       return {
-        results: results.map((result, i) => ({
-          occupied: result,
-          room: rooms[i],
+        results: rooms.map(room => ({
+          occupied: results[room],
+          room,
           day,
           start,
+          week,
         })),
       };
     },

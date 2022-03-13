@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Checkbox,
   FormControlLabel,
@@ -6,7 +6,7 @@ import {
 } from '@material-ui/core';
 import { IndeterminateCheckBox } from '@material-ui/icons';
 import { DayAbbrev, WeekData } from '../interfaces';
-import { neatRoomName, roomToColour } from '../util';
+import { neatRoomName, roomToColour, weeksToArray } from '../util';
 import { checkRooms, occupyRoom } from '../api';
 import { RoomResult } from '../../../api/types';
 
@@ -71,6 +71,8 @@ export default function FreeRoomDisplay(
     [data, day, duration, start, weeks],
   );
 
+  const firstWeek = useMemo(() => weeksToArray(weeks)[0], [weeks]);
+
   const handleResults = useCallback(
     (results: RoomResult[] | undefined) => {
       setLoading(false);
@@ -78,31 +80,33 @@ export default function FreeRoomDisplay(
         setOccupied(oldOccupied => {
           const newOccupied = { ...oldOccupied };
           for (const room of results) {
-            newOccupied[room.room] = room.occupied;
+            if (room.day === day && room.start === start && room.week === firstWeek) {
+              newOccupied[room.room] = room.occupied;
+            }
           }
           return newOccupied;
         });
       }
     },
-    [setLoading],
+    [day, firstWeek, setLoading, start],
   );
 
   const toggleRoom = useCallback(
     (room: string) => () => {
       setLoading(true);
-      occupyRoom([room], day, start, duration, !occupied[room]).then(handleResults);
+      occupyRoom([room], day, start, duration, firstWeek, !occupied[room]).then(handleResults);
     },
-    [day, duration, handleResults, occupied, setLoading, start],
+    [day, duration, firstWeek, handleResults, occupied, setLoading, start],
   );
 
   useEffect(
     () => {
       if (rooms.length) {
         setLoading(true);
-        checkRooms(rooms, day, start, duration).then(handleResults);
+        checkRooms(rooms, day, start, duration, firstWeek).then(handleResults);
       }
     },
-    [day, duration, handleResults, rooms, setLoading, start],
+    [day, duration, firstWeek, handleResults, rooms, setLoading, start],
   );
 
   return (
