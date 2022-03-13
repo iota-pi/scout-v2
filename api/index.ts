@@ -83,7 +83,7 @@ export async function checkRooms(
   for (const room of rooms) {
     result[room] = timeslots.some(timeslot => timeslot[room]);
   }
-  console.log('result', result)
+  console.log('result', result);
   return result;
 }
 
@@ -116,7 +116,7 @@ const getHandlers = (body: RequestBody) => {
       };
     },
     check: async () => {
-      const results = await checkRooms(rooms, day, start, week, duration);
+      const results = await checkRooms(rooms, day, start, duration, week);
       console.log(results);
       return {
         results: rooms.map(room => ({
