@@ -79,9 +79,11 @@ export async function checkRooms(
   }
   const timeslots = await Promise.all(promises);
   const result: Record<string, boolean> = {};
+  console.log('timeslots', timeslots);
   for (const room of rooms) {
     result[room] = timeslots.some(timeslot => timeslot[room]);
   }
+  console.log('result', result)
   return result;
 }
 
@@ -115,6 +117,7 @@ const getHandlers = (body: RequestBody) => {
     },
     check: async () => {
       const results = await checkRooms(rooms, day, start, week, duration);
+      console.log(results);
       return {
         results: rooms.map(room => ({
           occupied: results[room],
