@@ -7,7 +7,7 @@ const ddb = new AWS.DynamoDB.DocumentClient({
   region: 'ap-southeast-2',
 });
 
-const ONE_DAY = 24 * 60 * 60 * 1000;
+const TIME_TO_LIVE = 2 * 7 * 24 * 60 * 60 * 1000;
 const TableName = process.env.TABLE_NAME!;
 
 function getTimeslotId(day: string, hour: number, week: number) {
@@ -23,7 +23,7 @@ export async function occupyRoom(
 ) {
   const timeslot = getTimeslotId(day, hour, week);
   const Key = { timeslot };
-  const ttl = new Date().getTime() + ONE_DAY;
+  const ttl = new Date().getTime() + TIME_TO_LIVE;
   const promise = ddb.update({
     TableName,
     Key,
@@ -79,11 +79,9 @@ export async function checkRooms(
   }
   const timeslots = await Promise.all(promises);
   const result: Record<string, boolean> = {};
-  console.log('timeslots', timeslots);
   for (const room of rooms) {
     result[room] = timeslots.some(timeslot => timeslot[room]);
   }
-  console.log('result', result);
   return result;
 }
 
@@ -117,7 +115,6 @@ const getHandlers = (body: RequestBody) => {
     },
     check: async () => {
       const results = await checkRooms(rooms, day, start, duration, week);
-      console.log(results);
       return {
         results: rooms.map(room => ({
           occupied: results[room],
