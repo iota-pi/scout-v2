@@ -65,7 +65,7 @@ export async function checkRooms(
 ) {
   const promises: Promise<Record<string, boolean>>[] = [];
   for (let hour = start; hour < start + duration; ++hour) {
-    const timeslot = getTimeslotId(day, start, week);
+    const timeslot = getTimeslotId(day, hour, week);
     const Key = { timeslot };
     promises.push(
       ddb.get({
